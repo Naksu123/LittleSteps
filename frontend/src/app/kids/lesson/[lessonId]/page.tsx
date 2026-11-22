@@ -249,8 +249,8 @@ function LessonViewerContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#DDF8EC]/50 via-[#FFF9F0] to-[#FFF5CF]/45 p-4 sm:p-6">
-      <div className="mx-auto max-w-4xl space-y-6">
+    <div className="min-h-dvh bg-gradient-to-b from-[#DDF8EC]/50 via-[#FFF9F0] to-[#FFF5CF]/45 px-3.5 sm:px-6 py-4 sm:py-6">
+      <div className="mx-auto max-w-4xl 2xl:max-w-5xl space-y-5 sm:space-y-6">
         <KidsHeader
           child={activeChild}
           backHref="/kids?tab=learn"
@@ -345,25 +345,26 @@ function LessonViewerContent() {
                         </Button>
                       </div>
 
-                      <div className="rounded-3xl bg-[#FFF9F0] p-8 text-center space-y-4">
-                        <div className="text-7xl select-none">
+                      <div className="rounded-3xl bg-[#FFF9F0] p-5 sm:p-8 text-center space-y-3 sm:space-y-4">
+                        <div className="text-5xl sm:text-7xl select-none">
                           {currentSlide?.emoji}
                         </div>
-                        <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#24334D]">
+                        <h2 className="font-display text-xl sm:text-3xl font-bold text-[#24334D]">
                           {currentSlide?.title}
                         </h2>
-                        <p className="text-base sm:text-lg font-semibold text-[#24334D]/80 max-w-xl mx-auto">
+                        <p className="text-sm sm:text-lg font-semibold text-[#24334D]/80 max-w-xl mx-auto">
                           {currentSlide?.text}
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
                         <Button
                           type="button"
                           variant="outline"
                           size="kid"
                           disabled={slideIdx === 0}
                           onClick={() => setSlideIdx((s) => Math.max(0, s - 1))}
+                          className="flex-1 sm:flex-initial"
                         >
                           <ArrowLeft className="h-5 w-5" />
                           Back
@@ -375,6 +376,7 @@ function LessonViewerContent() {
                             variant="kids"
                             size="kid"
                             onClick={() => setSlideIdx((s) => s + 1)}
+                            className="flex-1 sm:flex-initial"
                           >
                             Next
                             <ArrowRight className="h-5 w-5" />
@@ -385,6 +387,7 @@ function LessonViewerContent() {
                             variant="kids"
                             size="kid"
                             onClick={advanceFromSlides}
+                            className="flex-1 sm:flex-initial"
                           >
                             {practiceConfig ? "Practice Time!" : "Finish"}
                             <ArrowRight className="h-5 w-5" />
@@ -447,7 +450,7 @@ function LessonViewerContent() {
                         type="button"
                         onClick={() => handleQuizOption(oIdx)}
                         className={cn(
-                          "min-h-16 rounded-2xl border-2 px-5 py-3 text-left font-display text-xl font-bold transition-all cursor-pointer flex items-center justify-between",
+                          "min-h-14 sm:min-h-16 rounded-2xl border-2 px-4 sm:px-5 py-3 text-left font-display text-base sm:text-xl font-bold transition-all cursor-pointer flex items-center justify-between gap-2",
                           quizAnsweredCorrect &&
                             oIdx ===
                               quiz.questions[quizIdx].correct_option_index
@@ -459,7 +462,7 @@ function LessonViewerContent() {
                         {quizAnsweredCorrect &&
                           oIdx ===
                             quiz.questions[quizIdx].correct_option_index && (
-                            <CheckCircle2 className="h-6 w-6" />
+                            <CheckCircle2 className="h-6 w-6 shrink-0" />
                           )}
                       </button>
                     ))}

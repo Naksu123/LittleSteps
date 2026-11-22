@@ -97,8 +97,8 @@ function ArtStudioContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FFE3DE]/45 via-[#FFF9F0] to-[#FFF5CF]/45 p-4 sm:p-6">
-      <div className="mx-auto max-w-5xl space-y-6">
+    <div className="min-h-dvh bg-gradient-to-b from-[#FFE3DE]/45 via-[#FFF9F0] to-[#FFF5CF]/45 px-3.5 sm:px-6 py-4 sm:py-6">
+      <div className="mx-auto max-w-5xl 2xl:max-w-6xl space-y-5 sm:space-y-6">
         <KidsHeader
           child={activeChild}
           backHref="/kids"
@@ -107,7 +107,7 @@ function ArtStudioContent() {
         />
 
         <div className="space-y-1">
-          <h1 className="font-display text-3xl font-bold text-[#24334D]">
+          <h1 className="font-display text-fluid-h1 font-bold text-[#24334D]">
             LittleSteps Art Studio
           </h1>
           <p className="text-sm font-semibold text-[#24334D]/75">
@@ -210,11 +210,12 @@ function ArtStudioContent() {
           title="Remove Artwork?"
           description={`Are you sure you want to delete "${deleteTarget?.title}" from the gallery?`}
         >
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="ghost"
               onClick={() => setDeleteTarget(null)}
+              className="w-full sm:w-auto"
             >
               Keep Artwork
             </Button>
@@ -223,6 +224,7 @@ function ArtStudioContent() {
               variant="coral"
               disabled={deleting}
               onClick={confirmDelete}
+              className="w-full sm:w-auto"
             >
               {deleting ? "Removing..." : "Delete Artwork"}
             </Button>

@@ -205,7 +205,7 @@ export function ChoiceGame({
   }
 
   return (
-    <div className="rounded-3xl bg-white p-6 sm:p-8 border-2 border-[#78C8F5]/35 shadow-md space-y-6">
+    <div className="rounded-3xl bg-white p-4 sm:p-6 lg:p-8 border-2 border-[#78C8F5]/35 shadow-md space-y-5 sm:space-y-6">
       {/* Progress Dots */}
       <div className="flex items-center justify-between gap-4">
         <div
@@ -232,8 +232,8 @@ export function ChoiceGame({
       </div>
 
       {/* Prompt + Audio */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-        <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#24334D]">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 text-center sm:text-left">
+        <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-[#24334D]">
           {currentRound.prompt}
         </h2>
         <Button
@@ -242,7 +242,7 @@ export function ChoiceGame({
           size="md"
           onClick={handleSpeak}
           aria-label="Hear prompt"
-          className="shrink-0 rounded-2xl min-h-12"
+          className="w-full sm:w-auto shrink-0 rounded-2xl min-h-12"
         >
           <Volume2 className="h-5 w-5" />
           Listen
@@ -251,15 +251,15 @@ export function ChoiceGame({
 
       {/* Visual Hint */}
       {visual && (
-        <div className="rounded-3xl bg-[#FFF9F0] p-6 flex flex-wrap items-center justify-center gap-4 border border-[#24334D]/8">
+        <div className="rounded-3xl bg-[#FFF9F0] p-4 sm:p-6 flex flex-wrap items-center justify-center gap-3 sm:gap-4 border border-[#24334D]/8">
           {visual.kind === "emoji" && (
-            <span className="text-7xl select-none">{visual.value}</span>
+            <span className="text-5xl sm:text-7xl select-none">{visual.value}</span>
           )}
 
           {visual.kind === "count" && (
-            <div className="flex flex-wrap justify-center gap-3 max-w-md">
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-3 max-w-md">
               {Array.from({ length: visual.count }).map((_, i) => (
-                <span key={i} className="text-5xl select-none">
+                <span key={i} className="text-4xl sm:text-5xl select-none">
                   {visual.emoji}
                 </span>
               ))}
@@ -267,29 +267,29 @@ export function ChoiceGame({
           )}
 
           {visual.kind === "sequence" && (
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
               {visual.items.map((item, i) => (
                 <span
                   key={i}
-                  className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-3xl shadow-xs"
+                  className="flex h-11 w-11 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-white text-2xl sm:text-3xl shadow-xs"
                 >
                   {item}
                 </span>
               ))}
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FFE58A] font-display text-2xl font-bold text-[#24334D] border-2 border-dashed border-[#24334D]/30">
+              <span className="flex h-11 w-11 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-[#FFE58A] font-display text-xl sm:text-2xl font-bold text-[#24334D] border-2 border-dashed border-[#24334D]/30">
                 ?
               </span>
             </div>
           )}
 
           {visual.kind === "sound" && (
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-2.5 sm:gap-3 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={handlePlayAnimalSoundOnly}
                 aria-label="Play animal sound"
                 className={cn(
-                  "inline-flex items-center gap-3 rounded-3xl px-6 py-4 font-display text-xl sm:text-2xl font-bold text-[#175B82] transition-all cursor-pointer border-2",
+                  "inline-flex items-center justify-center gap-2.5 sm:gap-3 rounded-3xl px-5 sm:px-6 py-3.5 sm:py-4 font-display text-lg sm:text-2xl font-bold text-[#175B82] transition-all cursor-pointer border-2",
                   playingAnimalSound
                     ? "bg-[#FFE58A] border-[#24334D]/25 scale-105 shadow-md"
                     : "bg-[#DCF2FD] border-[#78C8F5]/50 hover:scale-105"
@@ -297,7 +297,7 @@ export function ChoiceGame({
               >
                 <Volume2
                   className={cn(
-                    "h-7 w-7",
+                    "h-6 w-6 sm:h-7 sm:w-7 shrink-0",
                     playingAnimalSound && "animate-bounce"
                   )}
                 />
@@ -331,7 +331,7 @@ export function ChoiceGame({
         <div
           role="status"
           className={cn(
-            "rounded-2xl px-5 py-3 text-center font-display text-xl font-bold",
+            "rounded-2xl px-4 sm:px-5 py-3 text-center font-display text-lg sm:text-xl font-bold",
             feedbackTone === "success"
               ? "bg-[#DDF8EC] text-[#166041]"
               : "bg-[#FFF5CF] text-[#785700]"
@@ -344,12 +344,12 @@ export function ChoiceGame({
       {/* Dynamic Choice Grid */}
       <div
         className={cn(
-          "grid grid-cols-1 gap-4",
+          "grid grid-cols-1 gap-3 sm:gap-4",
           displayedChoices.length <= 2
-            ? "sm:grid-cols-2"
+            ? "min-[380px]:grid-cols-2"
             : displayedChoices.length === 4
-              ? "sm:grid-cols-2 lg:grid-cols-4"
-              : "sm:grid-cols-3"
+              ? "min-[380px]:grid-cols-2 lg:grid-cols-4"
+              : "min-[380px]:grid-cols-2 sm:grid-cols-3"
         )}
       >
         {displayedChoices.map((choice) => {
@@ -363,7 +363,7 @@ export function ChoiceGame({
               type="button"
               onClick={() => handleSelect(choice)}
               className={cn(
-                "min-h-[128px] rounded-3xl border-b-4 p-5 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer",
+                "min-h-[108px] sm:min-h-[128px] rounded-3xl border-b-4 p-4 sm:p-5 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer",
                 isSuccess
                   ? "bg-[#DDF8EC] border-[#9BE7C4] ring-4 ring-[#9BE7C4] scale-[1.03]"
                   : isMissed
@@ -373,19 +373,21 @@ export function ChoiceGame({
             >
               {choice.hex ? (
                 <span
-                  className="h-20 w-20 rounded-full border-4 border-white shadow-md"
+                  className="h-16 w-16 sm:h-20 sm:w-20 rounded-full border-4 border-white shadow-md"
                   style={{ backgroundColor: choice.hex }}
                   aria-hidden="true"
                 />
               ) : choice.emoji ? (
-                <span className="text-5xl select-none">{choice.emoji}</span>
+                <span className="text-4xl sm:text-5xl select-none">{choice.emoji}</span>
               ) : null}
 
               {(choice.text || choice.label) && (
                 <span
                   className={cn(
-                    "font-display font-bold text-[#24334D]",
-                    choice.text && !choice.emoji ? "text-5xl" : "text-xl"
+                    "font-display font-bold text-[#24334D] text-center break-words",
+                    choice.text && !choice.emoji
+                      ? "text-4xl sm:text-5xl"
+                      : "text-lg sm:text-xl"
                   )}
                 >
                   {choice.text || choice.label}

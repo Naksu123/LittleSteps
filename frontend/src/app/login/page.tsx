@@ -47,11 +47,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF9F0] flex flex-col justify-center py-10 px-4">
-      <div className="mx-auto w-full max-w-md space-y-6">
+    <div className="min-h-dvh bg-[#FFF9F0] flex flex-col justify-center py-6 sm:py-10 px-3.5 sm:px-6">
+      <div className="mx-auto w-full max-w-md space-y-5 sm:space-y-6">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm font-bold text-[#24334D]/70 hover:text-[#24334D]"
+          className="inline-flex items-center gap-1.5 min-h-10 text-sm font-bold text-[#24334D]/70 hover:text-[#24334D]"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Home
         </Link>
@@ -63,7 +63,9 @@ export default function LoginPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Parent &amp; Guardian Sign In</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl">
+              Parent &amp; Guardian Sign In
+            </CardTitle>
             <CardDescription>
               Sign in to manage your child&apos;s learning and open the child-safe Kids portal.
             </CardDescription>

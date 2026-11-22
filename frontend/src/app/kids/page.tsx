@@ -197,8 +197,8 @@ function KidsPortalContent() {
   const displayStreak = summary?.child.streak_days ?? activeChild?.streak_days ?? 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#DCF2FD]/55 via-[#FFF9F0] to-[#FFF5CF]/45 p-4 sm:p-6">
-      <div className="mx-auto max-w-6xl space-y-6">
+    <div className="min-h-dvh bg-gradient-to-b from-[#DCF2FD]/55 via-[#FFF9F0] to-[#FFF5CF]/45 px-3.5 sm:px-6 pt-3.5 sm:pt-6 safe-pb-nav md:pb-12">
+      <div className="mx-auto max-w-6xl 2xl:max-w-7xl space-y-5 sm:space-y-6">
         <KidsNav
           activeTab={activeTab}
           onSelectTab={handleTabSelect}
@@ -209,7 +209,7 @@ function KidsPortalContent() {
 
         {/* Child Profile Switcher */}
         {childrenList.length > 1 && (
-          <div className="flex flex-wrap items-center gap-3 rounded-3xl bg-white/90 px-5 py-3 shadow-xs border border-[#24334D]/8">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 rounded-3xl bg-white/90 px-4 sm:px-5 py-3 shadow-xs border border-[#24334D]/8">
             <span className="font-display text-sm font-semibold text-[#24334D]/75">
               Who is playing?
             </span>
@@ -220,7 +220,7 @@ function KidsPortalContent() {
                   key={child.id}
                   type="button"
                   onClick={() => setActiveChildId(child.id)}
-                  className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 font-display text-base font-semibold transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-2 rounded-full min-h-11 px-3.5 py-1.5 font-display text-sm sm:text-base font-semibold transition-all cursor-pointer ${
                     selected
                       ? "bg-[#FFE58A] text-[#24334D] ring-2 ring-[#24334D]"
                       : "bg-[#FFF9F0] hover:bg-[#DCF2FD]"
@@ -241,7 +241,7 @@ function KidsPortalContent() {
         {/* No Child Empty State */}
         {!loading && !activeChild && (
           <Card>
-            <CardContent className="p-8 text-center space-y-3">
+            <CardContent className="p-6 sm:p-8 text-center space-y-3">
               <h2 className="font-display text-2xl font-bold">
                 No Learner Profile Yet
               </h2>
@@ -260,33 +260,34 @@ function KidsPortalContent() {
 
         {/* Personalized Kids Hero */}
         <Card className="bg-white border-2 border-[#78C8F5]/40 overflow-hidden">
-          <CardContent className="p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+          <CardContent className="p-5 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5 text-center sm:text-left min-w-0">
               {activeChild ? (
                 <ChildAvatar
                   avatarKey={activeChild.avatar_key}
                   colorHex={activeChild.favorite_color}
                   size="xl"
+                  className="shrink-0"
                 />
               ) : (
-                <ChildAvatar avatarKey="owl" size="xl" />
+                <ChildAvatar avatarKey="owl" size="xl" className="shrink-0" />
               )}
-              <div className="space-y-2">
-                <h1 className="font-display text-3xl sm:text-4xl font-bold text-[#24334D]">
+              <div className="space-y-2 min-w-0">
+                <h1 className="font-display text-fluid-hero font-bold text-[#24334D] break-words">
                   {activeChild
                     ? `Hello, ${activeChild.display_name}!`
                     : "Hello, Little Explorer!"}
                 </h1>
-                <p className="text-base font-semibold text-[#24334D]/75">
+                <p className="text-sm sm:text-base font-semibold text-[#24334D]/75">
                   {bannerTip ||
                     "Today's Adventure: Discover colors, letters, and friendly games!"}
                 </p>
-                <div className="flex flex-wrap justify-center sm:justify-start gap-2.5 pt-1">
-                  <Badge variant="sunshine" className="text-sm px-3.5 py-1.5">
+                <div className="flex flex-wrap justify-center sm:justify-start gap-2 sm:gap-2.5 pt-1">
+                  <Badge variant="sunshine" className="text-xs sm:text-sm px-3 sm:px-3.5 py-1.5">
                     <Star className="h-4 w-4 fill-current" />
                     {displayStars} Stars
                   </Badge>
-                  <Badge variant="coral" className="text-sm px-3.5 py-1.5">
+                  <Badge variant="coral" className="text-xs sm:text-sm px-3 sm:px-3.5 py-1.5">
                     <Flame className="h-4 w-4" />
                     {displayStreak} Day Streak!
                   </Badge>
@@ -342,7 +343,7 @@ function KidsPortalContent() {
                             ? router.push(`/kids/lesson/${missionLesson.id}`)
                             : handleTabSelect("learn")
                         }
-                        className="shrink-0"
+                        className="w-full sm:w-auto shrink-0"
                       >
                         <Sparkles className="h-5 w-5" />
                         Start Adventure
@@ -477,7 +478,7 @@ function KidsPortalContent() {
                         key={subj.id}
                         type="button"
                         onClick={() => setSelectedSubjectId(subj.id)}
-                        className={`rounded-full px-3.5 py-1.5 text-xs font-bold border cursor-pointer ${
+                        className={`rounded-full min-h-10 sm:min-h-9 px-3.5 py-1.5 text-xs font-bold border cursor-pointer ${
                           selectedSubjectId === subj.id
                             ? "bg-[#24334D] text-white border-[#24334D]"
                             : "bg-white text-[#24334D] border-[#24334D]/15"

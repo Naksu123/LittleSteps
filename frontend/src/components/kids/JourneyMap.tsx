@@ -33,9 +33,9 @@ export function JourneyMap({
   const firstIncompleteIdx = themes.findIndex((t) => !completedThemeIds.has(t.id));
 
   return (
-    <div className="rounded-3xl bg-white p-5 border-2 border-[#78C8F5]/30 shadow-xs space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-xl font-bold text-[#24334D]">
+    <div className="rounded-3xl bg-white p-4 sm:p-5 border-2 border-[#78C8F5]/30 shadow-xs space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-display text-lg sm:text-xl font-bold text-[#24334D]">
           My Learning Map
         </h2>
         <span className="text-xs font-bold text-[#24334D]/60">
@@ -43,7 +43,7 @@ export function JourneyMap({
         </span>
       </div>
 
-      <div className="flex items-center gap-3 overflow-x-auto pb-2 pt-1">
+      <div className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto pb-2 pt-1 snap-x scrollbar-subtle">
         {themes.map((theme, idx) => {
           const isCompleted = completedThemeIds.has(theme.id);
           const isCurrent = idx === firstIncompleteIdx;
@@ -56,7 +56,7 @@ export function JourneyMap({
               onClick={() => onSelectTheme?.(theme)}
               title={`Week ${theme.week_number}: ${theme.title}`}
               className={cn(
-                "shrink-0 flex flex-col items-center gap-1.5 rounded-3xl px-3.5 py-3 min-w-[82px] border-2 transition-transform hover:scale-105 cursor-pointer",
+                "snap-start shrink-0 flex flex-col items-center gap-1.5 rounded-3xl px-3 sm:px-3.5 py-2.5 sm:py-3 min-w-[78px] sm:min-w-[84px] border-2 transition-transform hover:scale-105 cursor-pointer",
                 isCompleted
                   ? "bg-[#DDF8EC] border-[#9BE7C4] text-[#166041]"
                   : isCurrent

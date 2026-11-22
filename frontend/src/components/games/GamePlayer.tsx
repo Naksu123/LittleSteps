@@ -120,8 +120,8 @@ export function GamePlayer({
   if (!started) {
     return (
       <Card className="border-2 border-[#FFE58A] bg-white">
-        <CardContent className="p-8 text-center space-y-6">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#FFF5CF] text-5xl">
+        <CardContent className="p-5 sm:p-8 text-center space-y-5 sm:space-y-6">
+          <div className="mx-auto flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-[#FFF5CF] text-4xl sm:text-5xl">
             🎮
           </div>
           <div className="space-y-2">
@@ -139,10 +139,10 @@ export function GamePlayer({
                 • New every week!
               </Badge>
             )}
-            <h1 className="font-display text-3xl font-bold text-[#24334D]">
+            <h1 className="font-display text-fluid-h1 font-bold text-[#24334D]">
               {game.title}
             </h1>
-            <p className="text-base font-semibold text-[#24334D]/80 max-w-lg mx-auto">
+            <p className="text-sm sm:text-base font-semibold text-[#24334D]/80 max-w-lg mx-auto">
               {game.instructions}
             </p>
           </div>
@@ -191,12 +191,13 @@ export function GamePlayer({
             </div>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 pt-2">
             <Button
               type="button"
               variant="secondary"
               size="kid"
               onClick={() => speak(`${game.title}. ${game.instructions}`)}
+              className="w-full sm:w-auto"
             >
               <Volume2 className="h-5 w-5" />
               Hear Instructions
@@ -206,6 +207,7 @@ export function GamePlayer({
               variant="kids"
               size="kid"
               onClick={() => setStarted(true)}
+              className="w-full sm:w-auto"
             >
               <Play className="h-5 w-5" />
               Start {GAME_DIFFICULTY_META[difficulty].label} Mode
@@ -219,11 +221,11 @@ export function GamePlayer({
   return (
     <div className="space-y-4">
       {/* Live Difficulty Switcher Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white px-4 py-2.5 border border-[#24334D]/10 shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white px-3.5 sm:px-4 py-2.5 border border-[#24334D]/10 shadow-xs">
         <span className="font-display text-xs font-bold uppercase tracking-wide text-[#24334D]/65">
           Mode:
         </span>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {DIFFICULTIES.map((mode) => {
             const meta = GAME_DIFFICULTY_META[mode];
             const active = difficulty === mode;
@@ -233,7 +235,7 @@ export function GamePlayer({
                 type="button"
                 onClick={() => handleSwitchMode(mode)}
                 className={cn(
-                  "rounded-full border px-3.5 py-1 text-xs font-bold transition-all cursor-pointer",
+                  "rounded-full border min-h-9 px-3 sm:px-3.5 py-1 text-xs font-bold transition-all cursor-pointer",
                   active ? meta.activeClass : meta.pillClass
                 )}
               >

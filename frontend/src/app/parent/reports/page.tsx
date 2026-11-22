@@ -89,7 +89,7 @@ function WeeklyReportContent() {
       subtitle="Warm, child-centered summaries highlighting personal growth and home guidance."
     >
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 print:hidden">
         <div className="flex flex-wrap items-center gap-2">
           {childrenList.map((child) => {
             const selected = activeChild?.id === child.id;
@@ -98,7 +98,7 @@ function WeeklyReportContent() {
                 key={child.id}
                 type="button"
                 onClick={() => setActiveChildId(child.id)}
-                className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold cursor-pointer ${
+                className={`inline-flex items-center gap-2 rounded-2xl min-h-11 px-3.5 sm:px-4 py-1.5 text-sm font-bold cursor-pointer ${
                   selected
                     ? "bg-[#24334D] text-white"
                     : "bg-white text-[#24334D] border border-[#24334D]/12"
@@ -116,12 +116,13 @@ function WeeklyReportContent() {
         </div>
 
         {report && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <Button
               type="button"
               variant="outline"
               size="md"
               onClick={handleDownloadText}
+              className="flex-1 sm:flex-initial"
             >
               <Download className="h-4 w-4" />
               Download Summary (.txt)
@@ -131,6 +132,7 @@ function WeeklyReportContent() {
               variant="primary"
               size="md"
               onClick={() => window.print()}
+              className="flex-1 sm:flex-initial"
             >
               <Printer className="h-4 w-4" />
               Print / Save PDF
@@ -187,9 +189,9 @@ function WeeklyReportContent() {
           </Card>
 
           {/* Personal Progress Comparison */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print-break-inside-avoid">
+          <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 print-break-inside-avoid">
             <Card>
-              <CardContent className="p-5">
+              <CardContent className="p-4 sm:p-5">
                 <p className="text-xs font-bold text-[#24334D]/60">
                   Learning Time (7 Days)
                 </p>

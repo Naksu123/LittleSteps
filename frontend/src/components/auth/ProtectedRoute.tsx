@@ -28,9 +28,9 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-5xl p-8 space-y-6">
-        <Skeleton className="h-14 w-64" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="mx-auto max-w-5xl p-4 sm:p-8 space-y-6">
+        <Skeleton className="h-14 w-56 sm:w-64 max-w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-40 w-full" />
@@ -47,9 +47,9 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
   if (!hasPermission) {
     const portalHome = getDefaultPortalPath(user.roles);
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#FFF9F0]">
+      <div className="min-h-dvh flex items-center justify-center p-4 sm:p-6 bg-[#FFF9F0]">
         <Card className="max-w-md w-full border-2 border-[#FF9C8C]/50">
-          <CardContent className="p-8 text-center space-y-4">
+          <CardContent className="p-6 sm:p-8 text-center space-y-4">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#FFE3DE] text-[#8E3022]">
               <ShieldAlert className="h-7 w-7" />
             </div>

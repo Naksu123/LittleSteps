@@ -330,68 +330,68 @@ function ParentPortalContent() {
       )}
 
       {/* Quick Hub Navigation */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Link href="/parent/home-learning">
-          <Card className="hover:border-[#FF9C8C] transition-colors cursor-pointer bg-[#FFE3DE]/35">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Home className="h-5 w-5 text-[#8E3022]" />
-                <div>
-                  <p className="font-display font-bold text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <Link href="/parent/home-learning" className="min-w-0">
+          <Card className="h-full hover:border-[#FF9C8C] transition-colors cursor-pointer bg-[#FFE3DE]/35">
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Home className="h-5 w-5 text-[#8E3022] shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-display font-bold text-sm truncate">
                     12-Week Home Learning Hub
                   </p>
-                  <p className="text-xs text-[#24334D]/65">
+                  <p className="text-xs text-[#24334D]/65 truncate">
                     Guides, materials & reflections
                   </p>
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 text-[#24334D]/60" />
+              <ArrowRight className="h-4 w-4 text-[#24334D]/60 shrink-0" />
             </CardContent>
           </Card>
         </Link>
 
-        <Link href="/parent/reports">
-          <Card className="hover:border-[#78C8F5] transition-colors cursor-pointer bg-[#DCF2FD]/45">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-[#175B82]" />
-                <div>
-                  <p className="font-display font-bold text-sm">
+        <Link href="/parent/reports" className="min-w-0">
+          <Card className="h-full hover:border-[#78C8F5] transition-colors cursor-pointer bg-[#DCF2FD]/45">
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <FileText className="h-5 w-5 text-[#175B82] shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-display font-bold text-sm truncate">
                     Weekly Learning Reports
                   </p>
-                  <p className="text-xs text-[#24334D]/65">
+                  <p className="text-xs text-[#24334D]/65 truncate">
                     Printable & downloadable summaries
                   </p>
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 text-[#24334D]/60" />
+              <ArrowRight className="h-4 w-4 text-[#24334D]/60 shrink-0" />
             </CardContent>
           </Card>
         </Link>
 
-        <Link href="/parent/settings">
-          <Card className="hover:border-[#9BE7C4] transition-colors cursor-pointer bg-[#DDF8EC]/45">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Settings className="h-5 w-5 text-[#166041]" />
-                <div>
-                  <p className="font-display font-bold text-sm">
+        <Link href="/parent/settings" className="min-w-0 sm:col-span-2 lg:col-span-1">
+          <Card className="h-full hover:border-[#9BE7C4] transition-colors cursor-pointer bg-[#DDF8EC]/45">
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Settings className="h-5 w-5 text-[#166041] shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-display font-bold text-sm truncate">
                     Goals & Screen Time
                   </p>
-                  <p className="text-xs text-[#24334D]/65">
+                  <p className="text-xs text-[#24334D]/65 truncate">
                     Manage schedules & family limits
                   </p>
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 text-[#24334D]/60" />
+              <ArrowRight className="h-4 w-4 text-[#24334D]/60 shrink-0" />
             </CardContent>
           </Card>
         </Link>
       </div>
 
       {/* Child Switcher + Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex flex-col md:flex-row md:flex-wrap md:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex flex-wrap items-center gap-2">
           {childItems.map((item) => {
             const selected = activeItem?.child.id === item.child.id;
             return (
@@ -399,7 +399,7 @@ function ParentPortalContent() {
                 key={item.child.id}
                 type="button"
                 onClick={() => setActiveChildId(item.child.id)}
-                className={`inline-flex items-center gap-2.5 rounded-2xl px-4 py-2 text-sm font-bold transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-2 rounded-2xl min-h-11 px-3.5 sm:px-4 py-1.5 text-sm font-bold transition-all cursor-pointer ${
                   selected
                     ? "bg-[#24334D] text-white shadow-sm"
                     : "bg-white text-[#24334D] border border-[#24334D]/12 hover:bg-[#DCF2FD]"
@@ -433,9 +433,12 @@ function ParentPortalContent() {
             variant="kids"
             size="md"
             onClick={() => launchKidsMode(activeItem.child.id)}
+            className="w-full sm:w-auto"
           >
-            <Baby className="h-5 w-5" />
-            Launch Kids Mode for {activeItem.child.display_name}
+            <Baby className="h-5 w-5 shrink-0" />
+            <span className="truncate">
+              Launch Kids Mode for {activeItem.child.display_name}
+            </span>
           </Button>
         )}
       </div>
@@ -465,15 +468,15 @@ function ParentPortalContent() {
       ) : (
         <>
           {/* Summary Metrics */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <Card>
-              <CardContent className="p-5 flex items-center gap-3.5">
-                <div className="h-12 w-12 rounded-2xl bg-[#FFF5CF] flex items-center justify-center">
-                  <Star className="h-6 w-6 text-[#9A7100]" />
+              <CardContent className="p-4 sm:p-5 flex items-center gap-3">
+                <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-2xl bg-[#FFF5CF] flex items-center justify-center shrink-0">
+                  <Star className="h-5 w-5 sm:h-6 sm:w-6 text-[#9A7100]" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-[#24334D]/60">Total Stars</p>
-                  <p className="font-display text-2xl font-bold">
+                  <p className="font-display text-xl sm:text-2xl font-bold">
                     {activeItem.child.total_stars}
                   </p>
                 </div>
@@ -481,15 +484,15 @@ function ParentPortalContent() {
             </Card>
 
             <Card>
-              <CardContent className="p-5 flex items-center gap-3.5">
-                <div className="h-12 w-12 rounded-2xl bg-[#DDF8EC] flex items-center justify-center">
-                  <BookOpen className="h-6 w-6 text-[#166041]" />
+              <CardContent className="p-4 sm:p-5 flex items-center gap-3">
+                <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-2xl bg-[#DDF8EC] flex items-center justify-center shrink-0">
+                  <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-[#166041]" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-[#24334D]/60">
                     Lessons Done
                   </p>
-                  <p className="font-display text-2xl font-bold">
+                  <p className="font-display text-xl sm:text-2xl font-bold">
                     {activeItem.lessons_completed} / {activeItem.total_lessons}
                   </p>
                 </div>
@@ -497,15 +500,15 @@ function ParentPortalContent() {
             </Card>
 
             <Card>
-              <CardContent className="p-5 flex items-center gap-3.5">
-                <div className="h-12 w-12 rounded-2xl bg-[#DCF2FD] flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-[#175B82]" />
+              <CardContent className="p-4 sm:p-5 flex items-center gap-3">
+                <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-2xl bg-[#DCF2FD] flex items-center justify-center shrink-0">
+                  <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-[#175B82]" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-[#24334D]/60">
                     Learning Time
                   </p>
-                  <p className="font-display text-2xl font-bold">
+                  <p className="font-display text-xl sm:text-2xl font-bold">
                     {activeItem.total_time_minutes} min
                   </p>
                 </div>
@@ -513,15 +516,15 @@ function ParentPortalContent() {
             </Card>
 
             <Card>
-              <CardContent className="p-5 flex items-center gap-3.5">
-                <div className="h-12 w-12 rounded-2xl bg-[#FFE3DE] flex items-center justify-center">
-                  <Flame className="h-6 w-6 text-[#8E3022]" />
+              <CardContent className="p-4 sm:p-5 flex items-center gap-3">
+                <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-2xl bg-[#FFE3DE] flex items-center justify-center shrink-0">
+                  <Flame className="h-5 w-5 sm:h-6 sm:w-6 text-[#8E3022]" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-[#24334D]/60">
                     Joyful Streak
                   </p>
-                  <p className="font-display text-2xl font-bold">
+                  <p className="font-display text-xl sm:text-2xl font-bold">
                     {activeItem.child.streak_days} days
                   </p>
                 </div>
@@ -529,7 +532,7 @@ function ParentPortalContent() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
             {/* Weekly Learning Minutes Chart */}
             <Card className="lg:col-span-7">
               <CardHeader>
@@ -538,12 +541,15 @@ function ParentPortalContent() {
                   Minutes spent exploring lessons and games over the past 7 days.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="h-64">
+              <CardContent className="h-56 sm:h-64 lg:h-72 min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activeItem.weekly_activity}>
+                  <BarChart
+                    data={activeItem.weekly_activity}
+                    margin={{ top: 8, right: 8, left: -12, bottom: 4 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#24334D14" />
-                    <XAxis dataKey="day" tick={{ fill: "#24334D", fontSize: 12 }} />
-                    <YAxis tick={{ fill: "#24334D", fontSize: 12 }} />
+                    <XAxis dataKey="day" tick={{ fill: "#24334D", fontSize: 11 }} />
+                    <YAxis width={36} tick={{ fill: "#24334D", fontSize: 11 }} />
                     <Tooltip />
                     <Bar
                       dataKey="minutes"
@@ -815,7 +821,7 @@ function ParentPortalContent() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <label htmlFor="birth_year" className="text-sm font-bold">
                 Birth Year
@@ -841,7 +847,7 @@ function ParentPortalContent() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <label htmlFor="avatar_key" className="text-sm font-bold">
                 Avatar Friend
@@ -870,15 +876,21 @@ function ParentPortalContent() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="ghost"
               onClick={() => setAddOpen(false)}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button type="submit" variant="primary" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto"
+            >
               {isSubmitting ? "Saving..." : "Save Profile"}
             </Button>
           </div>
@@ -909,7 +921,7 @@ function ParentPortalContent() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <label htmlFor="edit_age_group" className="text-sm font-bold">
                 Age Group
@@ -952,15 +964,21 @@ function ParentPortalContent() {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="ghost"
               onClick={() => setEditOpen(false)}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button type="submit" variant="primary" disabled={isEditing}>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={isEditing}
+              className="w-full sm:w-auto"
+            >
               {isEditing ? "Saving..." : "Update Profile"}
             </Button>
           </div>

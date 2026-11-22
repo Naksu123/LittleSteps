@@ -173,7 +173,7 @@ function ParentSettingsContent() {
                 key={child.id}
                 type="button"
                 onClick={() => setActiveChildId(child.id)}
-                className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold cursor-pointer ${
+                className={`inline-flex items-center gap-2 rounded-2xl min-h-11 px-3.5 sm:px-4 py-1.5 text-sm font-bold cursor-pointer ${
                   selected
                     ? "bg-[#24334D] text-white"
                     : "bg-white text-[#24334D] border border-[#24334D]/12"
@@ -231,7 +231,7 @@ function ParentSettingsContent() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label htmlFor="goal_mins" className="text-sm font-bold">
                         Minutes / Day
@@ -259,6 +259,7 @@ function ParentSettingsContent() {
                     variant="primary"
                     size="md"
                     disabled={savingGoal}
+                    className="w-full sm:w-auto"
                   >
                     <Plus className="h-4 w-4" />
                     {savingGoal ? "Adding..." : "Add Learning Goal"}

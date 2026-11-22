@@ -60,10 +60,10 @@ export function GrownUpGate({ exitHref = "/parent" }: GrownUpGateProps) {
         size="md"
         onClick={openGate}
         aria-label="Grown-Up Exit"
-        className="rounded-2xl"
+        className="rounded-2xl min-h-11 px-3 sm:px-4 text-xs sm:text-sm shrink-0"
       >
-        <Lock className="h-4 w-4" />
-        Grown-Up Exit
+        <Lock className="h-4 w-4 shrink-0" />
+        <span>Grown-Up Exit</span>
       </Button>
 
       <Dialog
@@ -102,15 +102,16 @@ export function GrownUpGate({ exitHref = "/parent" }: GrownUpGateProps) {
           {gateError && (
             <p className="text-sm font-semibold text-[#8E3022]">{gateError}</p>
           )}
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">
             <Button
               type="button"
               variant="ghost"
               onClick={() => setGateOpen(false)}
+              className="w-full sm:w-auto"
             >
               Stay in Kids Mode
             </Button>
-            <Button type="submit" variant="primary">
+            <Button type="submit" variant="primary" className="w-full sm:w-auto">
               Unlock Portal
             </Button>
           </div>

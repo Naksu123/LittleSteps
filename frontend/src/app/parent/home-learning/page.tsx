@@ -150,7 +150,7 @@ function HomeLearningHubContent() {
 
       {/* Child Selector */}
       {childrenList.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2.5 print:hidden">
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
           {childrenList.map((child) => {
             const selected = activeChild?.id === child.id;
             return (
@@ -158,7 +158,7 @@ function HomeLearningHubContent() {
                 key={child.id}
                 type="button"
                 onClick={() => setActiveChildId(child.id)}
-                className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold cursor-pointer ${
+                className={`inline-flex items-center gap-2 rounded-2xl min-h-11 px-3.5 sm:px-4 py-1.5 text-sm font-bold cursor-pointer ${
                   selected
                     ? "bg-[#24334D] text-white"
                     : "bg-white text-[#24334D] border border-[#24334D]/12"
@@ -185,13 +185,62 @@ function HomeLearningHubContent() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* 12-Week Selector Sidebar */}
-          <div className="lg:col-span-4 space-y-2.5 print:hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+          {/* Mobile/Tablet Horizontal 12-Week Strip */}
+          <div className="lg:hidden space-y-2 print:hidden">
+            <div className="flex items-center justify-between px-0.5">
+              <h2 className="font-display text-base font-bold">
+                12 Weekly Themes
+              </h2>
+              <span className="text-xs font-bold text-[#24334D]/60">
+                Swipe weeks →
+              </span>
+            </div>
+            <div className="flex items-stretch gap-2.5 overflow-x-auto pb-2 snap-x scrollbar-subtle">
+              {themes.map((item) => {
+                const isSelected = item.theme.id === selectedTheme.theme.id;
+                const doneCount = item.home_activities.filter(
+                  (a) => a.completed
+                ).length;
+                const totalCount = item.home_activities.length;
+                return (
+                  <button
+                    key={item.theme.id}
+                    type="button"
+                    onClick={() => setSelectedThemeId(item.theme.id)}
+                    className={`snap-start shrink-0 min-w-[148px] max-w-[180px] text-left rounded-2xl p-3 border transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-white border-[#24334D] shadow-sm ring-2 ring-[#78C8F5]/50"
+                        : "bg-white/80 border-[#24334D]/10"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#24334D]/75">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: item.theme.color_hex }}
+                        />
+                        Wk {item.theme.week_number}
+                      </span>
+                      <span className="text-[11px] font-bold text-[#166041]">
+                        {doneCount}/{totalCount}
+                      </span>
+                    </div>
+                    <p className="font-display text-xs sm:text-sm font-bold text-[#24334D] mt-1 truncate">
+                      {item.theme.title}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Desktop 12-Week Selector Sidebar */}
+          <div className="hidden lg:block lg:col-span-4 space-y-2.5 print:hidden">
             <h2 className="font-display text-lg font-bold px-1">
               12 Weekly Themes
             </h2>
-            <div className="space-y-2 max-h-[680px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[680px] overflow-y-auto pr-1 scrollbar-subtle">
               {themes.map((item) => {
                 const isSelected = item.theme.id === selectedTheme.theme.id;
                 const doneCount = item.home_activities.filter(
@@ -237,7 +286,7 @@ function HomeLearningHubContent() {
           </div>
 
           {/* Selected Theme Detail */}
-          <div className="lg:col-span-8 space-y-6">
+          <div className="lg:col-span-8 min-w-0 space-y-5 sm:space-y-6">
             <Card className="border-2 border-[#FF9C8C]/40">
               <CardHeader>
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -443,11 +492,11 @@ function HomeLearningHubContent() {
                       <span className="text-sm font-bold block">
                         Did {activeChild.display_name} enjoy this activity?
                       </span>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => setValue("enjoyed", true)}
-                          className={`rounded-2xl px-4 py-2 text-sm font-bold border cursor-pointer ${
+                          className={`rounded-2xl min-h-11 px-4 py-2 text-sm font-bold border cursor-pointer ${
                             enjoyedVal
                               ? "bg-[#DDF8EC] border-[#9BE7C4] text-[#166041]"
                               : "bg-white border-[#24334D]/12"
@@ -458,7 +507,7 @@ function HomeLearningHubContent() {
                         <button
                           type="button"
                           onClick={() => setValue("enjoyed", false)}
-                          className={`rounded-2xl px-4 py-2 text-sm font-bold border cursor-pointer ${
+                          className={`rounded-2xl min-h-11 px-4 py-2 text-sm font-bold border cursor-pointer ${
                             !enjoyedVal
                               ? "bg-[#FFF5CF] border-[#FFE58A] text-[#785700]"
                               : "bg-white border-[#24334D]/12"

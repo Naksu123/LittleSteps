@@ -41,3 +41,24 @@ export function getDefaultPortalPath(roles: string[]): string {
   if (roles.includes("teacher")) return "/teacher";
   return "/parent";
 }
+
+const COMPACT_SUBJECT_LABELS: Record<string, string> = {
+  "alphabet & language": "Alphabet",
+  "mathematics": "Math",
+  "science & discovery": "Science",
+  "social & emotional": "Social",
+  "arts & creativity": "Arts",
+  "life skills": "Life",
+  "music & rhythm": "Music",
+};
+
+/** Shortens long subject names for narrow chart axes while preserving meaning. */
+export function formatCompactSubjectLabel(name: string): string {
+  const normalized = name.trim().toLowerCase();
+  if (COMPACT_SUBJECT_LABELS[normalized]) {
+    return COMPACT_SUBJECT_LABELS[normalized];
+  }
+  const trimmed = name.trim();
+  if (trimmed.length <= 11) return trimmed;
+  return `${trimmed.slice(0, 10)}…`;
+}

@@ -5,12 +5,14 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import { CheckCircle2, GraduationCap, HeartHandshake, Sparkles, Users } from "lucide-react";
+import { formatCompactSubjectLabel } from "@/lib/utils";
 import { ApiError, teacherApi } from "@/services/api";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PortalShell } from "@/components/layout/PortalShell";
@@ -70,12 +72,12 @@ function TeacherAnalyticsContent() {
       {error && <Alert tone="warning">{error}</Alert>}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="text-sm font-bold flex items-center gap-2">
+        <label className="text-sm font-bold flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <span>Filter Class:</span>
           <select
             value={classId}
             onChange={(e) => handleFilterChange(e.target.value)}
-            className="h-10 rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
+            className="h-11 w-full sm:w-auto rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
           >
             <option value="">All Assigned Classes</option>
             {classes.map((c) => (
@@ -91,50 +93,50 @@ function TeacherAnalyticsContent() {
         <Skeleton className="h-96 w-full" />
       ) : !analytics ? null : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <Card>
-              <CardContent className="p-5 flex items-center gap-3">
-                <GraduationCap className="h-8 w-8 text-[#175B82]" />
-                <div>
+              <CardContent className="p-4 sm:p-5 flex items-center gap-3">
+                <GraduationCap className="h-8 w-8 text-[#175B82] shrink-0" />
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-[#24334D]/60">Classes</p>
-                  <p className="font-display text-2xl font-bold">
+                  <p className="font-display text-xl sm:text-2xl font-bold">
                     {analytics.total_classes}
                   </p>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-5 flex items-center gap-3">
-                <Users className="h-8 w-8 text-[#166041]" />
-                <div>
+              <CardContent className="p-4 sm:p-5 flex items-center gap-3">
+                <Users className="h-8 w-8 text-[#166041] shrink-0" />
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-[#24334D]/60">Learners</p>
-                  <p className="font-display text-2xl font-bold">
+                  <p className="font-display text-xl sm:text-2xl font-bold">
                     {analytics.total_students}
                   </p>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-5 flex items-center gap-3">
-                <Sparkles className="h-8 w-8 text-[#9A7100]" />
-                <div>
+              <CardContent className="p-4 sm:p-5 flex items-center gap-3">
+                <Sparkles className="h-8 w-8 text-[#9A7100] shrink-0" />
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-[#24334D]/60">
                     Active This Week
                   </p>
-                  <p className="font-display text-2xl font-bold">
+                  <p className="font-display text-xl sm:text-2xl font-bold">
                     {analytics.active_learners_this_week}
                   </p>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-5 flex items-center gap-3">
-                <CheckCircle2 className="h-8 w-8 text-[#4C328B]" />
-                <div>
+              <CardContent className="p-4 sm:p-5 flex items-center gap-3">
+                <CheckCircle2 className="h-8 w-8 text-[#4C328B] shrink-0" />
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-[#24334D]/60">
                     Completion Rate
                   </p>
-                  <p className="font-display text-2xl font-bold">
+                  <p className="font-display text-xl sm:text-2xl font-bold">
                     {analytics.completion_rate_pct}%
                   </p>
                 </div>
@@ -142,7 +144,7 @@ function TeacherAnalyticsContent() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Weekly Classroom Activity (7 Days)</CardTitle>
@@ -150,13 +152,17 @@ function TeacherAnalyticsContent() {
                   Completed lessons and educational games across students.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="h-64">
+              <CardContent className="h-56 sm:h-64 lg:h-72 min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={analytics.weekly_completions}>
+                  <BarChart
+                    data={analytics.weekly_completions}
+                    margin={{ top: 8, right: 8, left: -14, bottom: 4 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#24334D14" />
-                    <XAxis dataKey="day" tick={{ fill: "#24334D", fontSize: 12 }} />
-                    <YAxis tick={{ fill: "#24334D", fontSize: 12 }} />
+                    <XAxis dataKey="day" tick={{ fill: "#24334D", fontSize: 11 }} />
+                    <YAxis width={34} tick={{ fill: "#24334D", fontSize: 11 }} />
                     <Tooltip />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
                     <Bar
                       dataKey="lessons"
                       name="Lessons"
@@ -181,17 +187,26 @@ function TeacherAnalyticsContent() {
                   Average mastery percentage by kindergarten domain.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="h-64">
+              <CardContent className="h-56 sm:h-64 lg:h-72 min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={analytics.subject_averages}>
+                  <BarChart
+                    data={analytics.subject_averages}
+                    margin={{ top: 8, right: 8, left: -12, bottom: 16 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#24334D14" />
                     <XAxis
                       dataKey="subject_name"
-                      tick={{ fill: "#24334D", fontSize: 10 }}
+                      tickFormatter={formatCompactSubjectLabel}
+                      interval={0}
+                      angle={-20}
+                      textAnchor="end"
+                      height={48}
+                      tick={{ fill: "#24334D", fontSize: 11 }}
                     />
                     <YAxis
+                      width={36}
                       domain={[0, 100]}
-                      tick={{ fill: "#24334D", fontSize: 12 }}
+                      tick={{ fill: "#24334D", fontSize: 11 }}
                     />
                     <Tooltip />
                     <Bar
@@ -206,7 +221,7 @@ function TeacherAnalyticsContent() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -222,11 +237,15 @@ function TeacherAnalyticsContent() {
                   analytics.students_needing_guidance.map((stu) => (
                     <div
                       key={stu.child_id}
-                      className="rounded-2xl bg-[#FFF9F0] p-4 border border-[#24334D]/8 flex items-center justify-between gap-3"
+                      className="rounded-2xl bg-[#FFF9F0] p-4 border border-[#24334D]/8 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3"
                     >
-                      <div className="flex items-center gap-3">
-                        <ChildAvatar avatarKey={stu.avatar_key} size="sm" />
-                        <div>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <ChildAvatar
+                          avatarKey={stu.avatar_key}
+                          size="sm"
+                          className="shrink-0"
+                        />
+                        <div className="min-w-0">
                           <p className="font-bold text-sm">
                             {stu.display_name}{" "}
                             <span className="text-xs font-normal text-[#24334D]/65">
@@ -236,7 +255,7 @@ function TeacherAnalyticsContent() {
                           <p className="text-xs text-[#24334D]/80">{stu.reason}</p>
                         </div>
                       </div>
-                      <Badge variant="sunshine">
+                      <Badge variant="sunshine" className="self-start sm:self-auto shrink-0">
                         {stu.lessons_completed} lessons
                       </Badge>
                     </div>

@@ -108,18 +108,20 @@ export function MemoryGame({
   }
 
   return (
-    <div className="rounded-3xl bg-white p-6 sm:p-8 border-2 border-[#78C8F5]/35 shadow-md space-y-6">
+    <div className="rounded-3xl bg-white p-4 sm:p-6 lg:p-8 border-2 border-[#78C8F5]/35 shadow-md space-y-5 sm:space-y-6">
       <div
         role="status"
-        className="rounded-2xl bg-[#DCF2FD]/70 px-5 py-3 text-center font-display text-lg font-bold text-[#175B82]"
+        className="rounded-2xl bg-[#DCF2FD]/70 px-4 sm:px-5 py-3 text-center font-display text-base sm:text-lg font-bold text-[#175B82]"
       >
         {feedback} ({matchedKeys.length} / {config.pairs.length} pairs)
       </div>
 
       <div
         className={cn(
-          "grid grid-cols-2 gap-4",
-          config.pairs.length <= 3 ? "sm:grid-cols-3" : "sm:grid-cols-4"
+          "grid grid-cols-2 gap-2.5 sm:gap-4",
+          config.pairs.length <= 3
+            ? "min-[460px]:grid-cols-3"
+            : "min-[480px]:grid-cols-3 sm:grid-cols-4"
         )}
       >
         {cards.map((card, idx) => {
@@ -133,7 +135,7 @@ export function MemoryGame({
               onClick={() => handleFlip(idx)}
               aria-label={isFaceUp ? card.label : `Card ${idx + 1}`}
               className={cn(
-                "min-h-[120px] rounded-3xl border-b-4 p-4 flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer",
+                "min-h-[96px] sm:min-h-[120px] rounded-3xl border-b-4 p-3 sm:p-4 flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer",
                 isMatched
                   ? "bg-[#DDF8EC] border-[#9BE7C4]"
                   : isFaceUp
@@ -143,13 +145,13 @@ export function MemoryGame({
             >
               {isFaceUp ? (
                 <>
-                  <span className="text-5xl select-none">{card.emoji}</span>
-                  <span className="font-display text-xs font-bold text-[#24334D]">
+                  <span className="text-4xl sm:text-5xl select-none">{card.emoji}</span>
+                  <span className="font-display text-xs font-bold text-[#24334D] text-center break-words">
                     {card.label}
                   </span>
                 </>
               ) : (
-                <span className="font-display text-3xl font-bold">?</span>
+                <span className="font-display text-2xl sm:text-3xl font-bold">?</span>
               )}
             </button>
           );

@@ -9,14 +9,18 @@ interface MascotProps {
 
 export function Mascot({ message, size = "md" }: MascotProps) {
   const dims =
-    size === "sm" ? "w-16 h-16" : size === "lg" ? "w-28 h-28" : "w-20 h-20";
+    size === "sm"
+      ? "w-14 h-14 sm:w-16 sm:h-16"
+      : size === "lg"
+        ? "w-20 h-20 sm:w-28 sm:h-28"
+        : "w-16 h-16 sm:w-20 sm:h-20";
 
   return (
-    <div className="inline-flex items-center gap-4">
+    <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 max-w-full">
       <motion.div
         animate={{ y: [0, -6, 0] }}
         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-        className={dims}
+        className={`${dims} shrink-0`}
       >
         <svg
           viewBox="0 0 120 120"
@@ -44,7 +48,7 @@ export function Mascot({ message, size = "md" }: MascotProps) {
         </svg>
       </motion.div>
       {message && (
-        <div className="relative rounded-3xl bg-white px-5 py-3 shadow-sm border-2 border-[#78C8F5]/40 text-sm sm:text-base font-semibold text-[#24334D] max-w-md">
+        <div className="relative rounded-3xl bg-white px-4 sm:px-5 py-2.5 sm:py-3 shadow-sm border-2 border-[#78C8F5]/40 text-sm sm:text-base font-semibold text-[#24334D] max-w-full sm:max-w-md text-center sm:text-left break-words">
           {message}
         </div>
       )}

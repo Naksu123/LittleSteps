@@ -271,7 +271,7 @@ function AdminUsersContent() {
               </select>
             </div>
 
-            <div className="pt-5">
+            <div className="pt-1 lg:pt-5 sm:col-span-2 lg:col-span-1">
               <Button
                 type="submit"
                 variant="secondary"
@@ -303,7 +303,7 @@ function AdminUsersContent() {
               e.preventDefault();
               void loadUsers();
             }}
-            className="flex flex-wrap items-center gap-2"
+            className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 w-full lg:w-auto"
           >
             <div className="relative w-full sm:w-56">
               <Search className="h-4 w-4 absolute left-3.5 top-3.5 text-[#24334D]/50" />
@@ -314,40 +314,42 @@ function AdminUsersContent() {
                 className="pl-9"
               />
             </div>
-            <select
-              aria-label="Filter by role"
-              value={roleFilter}
-              onChange={(e) => {
-                setRoleFilter(e.target.value);
-                void loadUsers({ role: e.target.value });
-              }}
-              className="h-11 rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
-            >
-              <option value="">All Roles</option>
-              <option value="parent">Parent</option>
-              <option value="teacher">Teacher</option>
-              <option value="admin">Admin</option>
-            </select>
-            <select
-              aria-label="Filter by active status"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                void loadUsers({ status: e.target.value });
-              }}
-              className="h-11 rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
-            >
-              <option value="">All Statuses</option>
-              <option value="true">Active Only</option>
-              <option value="false">Inactive Only</option>
-            </select>
-            <Button type="submit" variant="secondary" size="md">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+              <select
+                aria-label="Filter by role"
+                value={roleFilter}
+                onChange={(e) => {
+                  setRoleFilter(e.target.value);
+                  void loadUsers({ role: e.target.value });
+                }}
+                className="h-11 w-full sm:w-auto rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
+              >
+                <option value="">All Roles</option>
+                <option value="parent">Parent</option>
+                <option value="teacher">Teacher</option>
+                <option value="admin">Admin</option>
+              </select>
+              <select
+                aria-label="Filter by active status"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  void loadUsers({ status: e.target.value });
+                }}
+                className="h-11 w-full sm:w-auto rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
+              >
+                <option value="">All Statuses</option>
+                <option value="true">Active Only</option>
+                <option value="false">Inactive Only</option>
+              </select>
+            </div>
+            <Button type="submit" variant="secondary" size="md" className="w-full sm:w-auto">
               Search
             </Button>
           </form>
         </CardHeader>
 
-        <CardContent className="overflow-x-auto">
+        <CardContent className="space-y-4">
           {loading ? (
             <Skeleton className="h-48 w-full" />
           ) : users.length === 0 ? (
@@ -355,28 +357,31 @@ function AdminUsersContent() {
               No accounts matched your current search or role filter.
             </p>
           ) : (
-            <table className="w-full text-sm text-left">
-              <thead>
-                <tr className="border-b border-[#24334D]/10 text-xs uppercase text-[#24334D]/60">
-                  <th className="py-3 pr-4">Name</th>
-                  <th className="py-3 pr-4">Email</th>
-                  <th className="py-3 pr-4">Roles</th>
-                  <th className="py-3 pr-4">Status</th>
-                  <th className="py-3 pr-4">Last Login</th>
-                  <th className="py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+            <>
+              {/* Mobile Stacked Cards */}
+              <div className="md:hidden space-y-3">
                 {users.map((u) => {
                   const isSelf = u.id === currentUser?.id;
                   return (
-                    <tr
+                    <div
                       key={u.id}
-                      className="border-b border-[#24334D]/6 last:border-none"
+                      className="rounded-2xl bg-[#FFF9F0] p-4 border border-[#24334D]/10 space-y-3"
                     >
-                      <td className="py-3 pr-4 font-bold">{u.full_name}</td>
-                      <td className="py-3 pr-4 text-[#24334D]/75">{u.email}</td>
-                      <td className="py-3 pr-4">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm text-[#24334D] break-words">
+                            {u.full_name}
+                          </p>
+                          <p className="text-xs text-[#24334D]/70 break-all">
+                            {u.email}
+                          </p>
+                        </div>
+                        <Badge variant={u.is_active ? "mint" : "coral"} className="shrink-0">
+                          {u.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                         <div className="flex flex-wrap gap-1">
                           {u.roles.map((r) => (
                             <Badge key={r} variant="lavender" className="capitalize">
@@ -384,20 +389,17 @@ function AdminUsersContent() {
                             </Badge>
                           ))}
                         </div>
-                      </td>
-                      <td className="py-3 pr-4">
-                        <Badge variant={u.is_active ? "mint" : "coral"}>
-                          {u.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </td>
-                      <td className="py-3 pr-4 text-xs text-[#24334D]/65">
-                        {formatShortDate(u.last_login_at)}
-                      </td>
-                      <td className="py-3 text-right space-x-2 whitespace-nowrap">
+                        <span className="text-[#24334D]/60">
+                          Last login: {formatShortDate(u.last_login_at)}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 pt-1">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => openEditModal(u)}
+                          className="flex-1"
                         >
                           <Edit3 className="h-3.5 w-3.5" />
                           Edit Roles
@@ -407,6 +409,7 @@ function AdminUsersContent() {
                           size="sm"
                           disabled={isSelf || updatingId === u.id}
                           onClick={() => handleToggleStatus(u)}
+                          className="flex-1"
                         >
                           {isSelf
                             ? "Current Admin"
@@ -414,12 +417,83 @@ function AdminUsersContent() {
                               ? "Deactivate"
                               : "Activate"}
                         </Button>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+
+              {/* Tablet / Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full min-w-[680px] text-sm text-left">
+                  <thead>
+                    <tr className="border-b border-[#24334D]/10 text-xs uppercase text-[#24334D]/60">
+                      <th className="py-3 pr-4">Name</th>
+                      <th className="py-3 pr-4">Email</th>
+                      <th className="py-3 pr-4">Roles</th>
+                      <th className="py-3 pr-4">Status</th>
+                      <th className="py-3 pr-4">Last Login</th>
+                      <th className="py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => {
+                      const isSelf = u.id === currentUser?.id;
+                      return (
+                        <tr
+                          key={u.id}
+                          className="border-b border-[#24334D]/6 last:border-none"
+                        >
+                          <td className="py-3 pr-4 font-bold">{u.full_name}</td>
+                          <td className="py-3 pr-4 text-[#24334D]/75 break-all">
+                            {u.email}
+                          </td>
+                          <td className="py-3 pr-4">
+                            <div className="flex flex-wrap gap-1">
+                              {u.roles.map((r) => (
+                                <Badge key={r} variant="lavender" className="capitalize">
+                                  {r}
+                                </Badge>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="py-3 pr-4">
+                            <Badge variant={u.is_active ? "mint" : "coral"}>
+                              {u.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                          </td>
+                          <td className="py-3 pr-4 text-xs text-[#24334D]/65">
+                            {formatShortDate(u.last_login_at)}
+                          </td>
+                          <td className="py-3 text-right space-x-2 whitespace-nowrap">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditModal(u)}
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                              Edit Roles
+                            </Button>
+                            <Button
+                              variant={u.is_active ? "outline" : "mint"}
+                              size="sm"
+                              disabled={isSelf || updatingId === u.id}
+                              onClick={() => handleToggleStatus(u)}
+                            >
+                              {isSelf
+                                ? "Current Admin"
+                                : u.is_active
+                                  ? "Deactivate"
+                                  : "Activate"}
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -476,14 +550,19 @@ function AdminUsersContent() {
               )}
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setEditingUser(null)}>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setEditingUser(null)}
+                className="w-full sm:w-auto"
+              >
                 Cancel
               </Button>
               <Button
                 variant="secondary"
                 disabled={savingEdit}
                 onClick={handleSaveEdit}
+                className="w-full sm:w-auto"
               >
                 {savingEdit ? "Saving..." : "Save Changes"}
               </Button>

@@ -23,7 +23,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { formatShortDate } from "@/lib/utils";
+import { formatCompactSubjectLabel, formatShortDate } from "@/lib/utils";
 import { adminApi, ApiError } from "@/services/api";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PortalShell } from "@/components/layout/PortalShell";
@@ -127,16 +127,16 @@ function AdminPortalContent() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+              <CardContent className="grid grid-cols-2 min-[480px]:grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 sm:gap-3">
                 {Object.entries(health.counts).map(([key, count]) => (
                   <div
                     key={key}
-                    className="rounded-2xl bg-white p-3.5 border border-[#24334D]/8 text-center"
+                    className="rounded-2xl bg-white p-3 sm:p-3.5 border border-[#24334D]/8 text-center min-w-0"
                   >
-                    <p className="font-display text-2xl font-bold text-[#24334D]">
+                    <p className="font-display text-xl sm:text-2xl font-bold text-[#24334D]">
                       {count}
                     </p>
-                    <p className="text-xs font-bold capitalize text-[#24334D]/60">
+                    <p className="text-xs font-bold capitalize text-[#24334D]/60 truncate">
                       {key}
                     </p>
                   </div>
@@ -147,7 +147,7 @@ function AdminPortalContent() {
 
           {/* KPI Summary Cards */}
           {analytics && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <Card>
                 <CardContent className="p-5 flex items-start gap-3">
                   <Users className="h-8 w-8 text-[#175B82] shrink-0" />
@@ -290,7 +290,7 @@ function AdminPortalContent() {
 
           {/* Analytics Charts */}
           {analytics && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle>7-Day Platform Learning Activity</CardTitle>
@@ -298,17 +298,21 @@ function AdminPortalContent() {
                     Daily completed lessons, educational games, and home activities.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="h-72 w-full">
+                <CardContent className="h-56 sm:h-64 lg:h-72 w-full min-w-0">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={analytics.daily_activity}>
+                    <BarChart
+                      data={analytics.daily_activity}
+                      margin={{ top: 8, right: 8, left: -14, bottom: 4 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" stroke="#24334D14" />
-                      <XAxis dataKey="day" tick={{ fill: "#24334D", fontSize: 12 }} />
+                      <XAxis dataKey="day" tick={{ fill: "#24334D", fontSize: 11 }} />
                       <YAxis
+                        width={34}
                         allowDecimals={false}
-                        tick={{ fill: "#24334D", fontSize: 12 }}
+                        tick={{ fill: "#24334D", fontSize: 11 }}
                       />
                       <Tooltip />
-                      <Legend />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
                       <Bar
                         dataKey="lessons"
                         name="Lessons"
@@ -339,20 +343,29 @@ function AdminPortalContent() {
                     Available lessons and interactive games across early learning modules.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="h-72 w-full">
+                <CardContent className="h-56 sm:h-64 lg:h-72 w-full min-w-0">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={analytics.subject_distribution}>
+                    <BarChart
+                      data={analytics.subject_distribution}
+                      margin={{ top: 8, right: 8, left: -14, bottom: 16 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" stroke="#24334D14" />
                       <XAxis
                         dataKey="subject_name"
+                        tickFormatter={formatCompactSubjectLabel}
+                        interval={0}
+                        angle={-20}
+                        textAnchor="end"
+                        height={48}
                         tick={{ fill: "#24334D", fontSize: 11 }}
                       />
                       <YAxis
+                        width={34}
                         allowDecimals={false}
-                        tick={{ fill: "#24334D", fontSize: 12 }}
+                        tick={{ fill: "#24334D", fontSize: 11 }}
                       />
                       <Tooltip />
-                      <Legend />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
                       <Bar
                         dataKey="lessons"
                         name="Lessons"
@@ -374,11 +387,11 @@ function AdminPortalContent() {
 
           {/* Recent Audit Logs Preview */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-[#4C328B]" />
-                  Recent Security Audit Logs
+                  <Shield className="h-5 w-5 text-[#4C328B] shrink-0" />
+                  <span>Recent Security Audit Logs</span>
                 </CardTitle>
                 <CardDescription>
                   Immutable non-PII record of authentication and administrative changes.
@@ -386,7 +399,7 @@ function AdminPortalContent() {
               </div>
               <Link
                 href="/admin/settings"
-                className="text-sm font-bold text-[#175B82] hover:underline"
+                className="text-sm font-bold text-[#175B82] hover:underline self-start sm:self-auto shrink-0"
               >
                 Full Audit Log →
               </Link>
@@ -402,16 +415,16 @@ function AdminPortalContent() {
                     key={log.id}
                     className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-2xl bg-[#FFF9F0] px-4 py-3 text-xs border border-[#24334D]/8"
                   >
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
                       <Badge variant="sky">{log.action}</Badge>
-                      <span className="font-bold text-[#24334D]">
+                      <span className="font-bold text-[#24334D] break-all">
                         {log.actor_email || "system"}
                       </span>
                       <span className="text-[#24334D]/65">
                         on {log.resource_type}
                       </span>
                     </div>
-                    <span className="text-[#24334D]/60">
+                    <span className="text-[#24334D]/60 shrink-0">
                       {formatShortDate(log.created_at)}
                     </span>
                   </div>

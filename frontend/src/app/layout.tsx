@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "@fontsource/fredoka/400.css";
 import "@fontsource/fredoka/600.css";
 import "@fontsource/fredoka/700.css";
@@ -18,14 +18,21 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#FFF9F0",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-[#FFF9F0] text-[#24334D] antialiased">
+    <html lang="en" className="overflow-x-clip">
+      <body className="min-h-dvh bg-[#FFF9F0] text-[#24334D] antialiased overflow-x-clip">
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

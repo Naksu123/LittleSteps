@@ -310,14 +310,14 @@ function TeacherAssignmentsContent() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label htmlFor="asg_cls" className="text-xs font-bold">
                       Target Class
                     </label>
                     <select
                       id="asg_cls"
-                      className="h-10 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-2 text-xs"
+                      className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
                       {...regAsg("class_id")}
                     >
                       <option value="">Optional</option>
@@ -334,7 +334,7 @@ function TeacherAssignmentsContent() {
                     </label>
                     <select
                       id="asg_stu"
-                      className="h-10 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-2 text-xs"
+                      className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
                       {...regAsg("child_id")}
                     >
                       <option value="">Optional</option>
@@ -352,14 +352,14 @@ function TeacherAssignmentsContent() {
                   </p>
                 )}
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label htmlFor="asg_les" className="text-xs font-bold">
                       Lesson
                     </label>
                     <select
                       id="asg_les"
-                      className="h-10 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-2 text-xs"
+                      className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
                       {...regAsg("lesson_id")}
                     >
                       <option value="">Optional</option>
@@ -376,7 +376,7 @@ function TeacherAssignmentsContent() {
                     </label>
                     <select
                       id="asg_game"
-                      className="h-10 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-2 text-xs"
+                      className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
                       {...regAsg("game_id")}
                     >
                       <option value="">Optional</option>
@@ -459,7 +459,7 @@ function TeacherAssignmentsContent() {
                   className="space-y-3"
                 >
                   <select
-                    className="h-10 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm"
+                    className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
                     {...regObs("child_id")}
                   >
                     <option value="">Select enrolled student</option>
@@ -476,7 +476,7 @@ function TeacherAssignmentsContent() {
                   )}
 
                   <select
-                    className="h-10 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm"
+                    className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
                     {...regObs("category")}
                   >
                     <option value="encouragement">Encouragement</option>
@@ -508,7 +508,7 @@ function TeacherAssignmentsContent() {
                   className="space-y-3"
                 >
                   <select
-                    className="h-10 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm"
+                    className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
                     {...regFb("child_id")}
                   >
                     <option value="">Select enrolled student</option>
@@ -600,7 +600,7 @@ function TeacherAssignmentsContent() {
                   </p>
                 )}
                 <select
-                  className="h-10 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm"
+                  className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
                   {...regAnn("class_id")}
                 >
                   <option value="">All My Classes</option>

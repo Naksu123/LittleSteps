@@ -140,99 +140,99 @@ function TeacherPortalContent() {
       )}
 
       {/* Quick Navigation */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Link href="/teacher/lessons">
-          <Card className="hover:border-[#9BE7C4] transition-colors cursor-pointer bg-[#DDF8EC]/35">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <BookOpen className="h-5 w-5 text-[#166041]" />
-                <div>
-                  <p className="font-display font-bold text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <Link href="/teacher/lessons" className="min-w-0">
+          <Card className="h-full hover:border-[#9BE7C4] transition-colors cursor-pointer bg-[#DDF8EC]/35">
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <BookOpen className="h-5 w-5 text-[#166041] shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-display font-bold text-sm truncate">
                     Lessons & Themes Studio
                   </p>
-                  <p className="text-xs text-[#24334D]/65">
+                  <p className="text-xs text-[#24334D]/65 truncate">
                     Create, publish & upload media
                   </p>
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 text-[#24334D]/60" />
+              <ArrowRight className="h-4 w-4 text-[#24334D]/60 shrink-0" />
             </CardContent>
           </Card>
         </Link>
 
-        <Link href="/teacher/assignments">
-          <Card className="hover:border-[#FFE58A] transition-colors cursor-pointer bg-[#FFF5CF]/45">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <ClipboardList className="h-5 w-5 text-[#9A7100]" />
-                <div>
-                  <p className="font-display font-bold text-sm">
+        <Link href="/teacher/assignments" className="min-w-0">
+          <Card className="h-full hover:border-[#FFE58A] transition-colors cursor-pointer bg-[#FFF5CF]/45">
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <ClipboardList className="h-5 w-5 text-[#9A7100] shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-display font-bold text-sm truncate">
                     Assignments & Notes
                   </p>
-                  <p className="text-xs text-[#24334D]/65">
+                  <p className="text-xs text-[#24334D]/65 truncate">
                     Observations, feedback & notices
                   </p>
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 text-[#24334D]/60" />
+              <ArrowRight className="h-4 w-4 text-[#24334D]/60 shrink-0" />
             </CardContent>
           </Card>
         </Link>
 
-        <Link href="/teacher/analytics">
-          <Card className="hover:border-[#78C8F5] transition-colors cursor-pointer bg-[#DCF2FD]/45">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <BarChart3 className="h-5 w-5 text-[#175B82]" />
-                <div>
-                  <p className="font-display font-bold text-sm">
+        <Link href="/teacher/analytics" className="min-w-0 sm:col-span-2 lg:col-span-1">
+          <Card className="h-full hover:border-[#78C8F5] transition-colors cursor-pointer bg-[#DCF2FD]/45">
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <BarChart3 className="h-5 w-5 text-[#175B82] shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-display font-bold text-sm truncate">
                     Class Analytics
                   </p>
-                  <p className="text-xs text-[#24334D]/65">
+                  <p className="text-xs text-[#24334D]/65 truncate">
                     Completion charts & guidance
                   </p>
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 text-[#24334D]/60" />
+              <ArrowRight className="h-4 w-4 text-[#24334D]/60 shrink-0" />
             </CardContent>
           </Card>
         </Link>
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <Card>
-          <CardContent className="p-5 flex items-center gap-3.5">
-            <div className="h-12 w-12 rounded-2xl bg-[#DCF2FD] flex items-center justify-center">
-              <GraduationCap className="h-6 w-6 text-[#175B82]" />
+          <CardContent className="p-4 sm:p-5 flex items-center gap-3">
+            <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-2xl bg-[#DCF2FD] flex items-center justify-center shrink-0">
+              <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-[#175B82]" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-bold text-[#24334D]/60">Assigned Classes</p>
-              <p className="font-display text-2xl font-bold">{classes.length}</p>
+              <p className="font-display text-xl sm:text-2xl font-bold">{classes.length}</p>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-5 flex items-center gap-3.5">
-            <div className="h-12 w-12 rounded-2xl bg-[#DDF8EC] flex items-center justify-center">
-              <Users className="h-6 w-6 text-[#166041]" />
+          <CardContent className="p-4 sm:p-5 flex items-center gap-3">
+            <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-2xl bg-[#DDF8EC] flex items-center justify-center shrink-0">
+              <Users className="h-5 w-5 sm:h-6 sm:w-6 text-[#166041]" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-bold text-[#24334D]/60">Enrolled Students</p>
-              <p className="font-display text-2xl font-bold">{students.length}</p>
+              <p className="font-display text-xl sm:text-2xl font-bold">{students.length}</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-5 flex items-center gap-3.5">
-            <div className="h-12 w-12 rounded-2xl bg-[#FFF5CF] flex items-center justify-center">
-              <BookOpen className="h-6 w-6 text-[#9A7100]" />
+        <Card className="min-[420px]:col-span-2 sm:col-span-1">
+          <CardContent className="p-4 sm:p-5 flex items-center gap-3">
+            <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-2xl bg-[#FFF5CF] flex items-center justify-center shrink-0">
+              <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-[#9A7100]" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-bold text-[#24334D]/60">Published Themes</p>
-              <p className="font-display text-2xl font-bold">{themes.length}</p>
+              <p className="font-display text-xl sm:text-2xl font-bold">{themes.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -318,53 +318,121 @@ function TeacherPortalContent() {
                 />
               </div>
             </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead>
-                  <tr className="border-b border-[#24334D]/10 text-xs uppercase text-[#24334D]/60">
-                    <th className="py-3 pr-4">Learner</th>
-                    <th className="py-3 pr-4">Class</th>
-                    <th className="py-3 pr-4">Age Group</th>
-                    <th className="py-3 pr-4">Stars</th>
-                    <th className="py-3 pr-4">Lessons</th>
-                    <th className="py-3 pr-4">Streak</th>
-                    <th className="py-3 text-right">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredStudents.map((stu) => (
-                    <tr
-                      key={stu.id}
-                      className="border-b border-[#24334D]/6 last:border-none"
-                    >
-                      <td className="py-3 pr-4 font-bold flex items-center gap-2.5">
-                        <ChildAvatar avatarKey={stu.avatar_key} size="sm" />
-                        {stu.display_name}
-                      </td>
-                      <td className="py-3 pr-4 text-[#24334D]/80">
-                        {stu.class_name}
-                      </td>
-                      <td className="py-3 pr-4">
-                        <Badge variant="neutral">{stu.age_group}</Badge>
-                      </td>
-                      <td className="py-3 pr-4 font-bold">⭐ {stu.total_stars}</td>
-                      <td className="py-3 pr-4">{stu.lessons_completed}</td>
-                      <td className="py-3 pr-4">{stu.streak_days} days</td>
-                      <td className="py-3 text-right">
+            <CardContent className="space-y-4">
+              {filteredStudents.length === 0 ? (
+                <p className="text-sm text-[#24334D]/65 py-6 text-center">
+                  No enrolled learners matched your search.
+                </p>
+              ) : (
+                <>
+                  {/* Mobile Stacked Cards */}
+                  <div className="md:hidden space-y-3">
+                    {filteredStudents.map((stu) => (
+                      <div
+                        key={stu.id}
+                        className="rounded-2xl bg-[#FFF9F0] p-4 border border-[#24334D]/10 space-y-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <ChildAvatar
+                              avatarKey={stu.avatar_key}
+                              size="sm"
+                              className="shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm truncate">
+                                {stu.display_name}
+                              </p>
+                              <p className="text-xs text-[#24334D]/65 truncate">
+                                {stu.class_name}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant="neutral" className="shrink-0">
+                            {stu.age_group}
+                          </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 rounded-xl bg-white p-2.5 text-center border border-[#24334D]/8 text-xs">
+                          <div>
+                            <p className="text-[11px] text-[#24334D]/60">Stars</p>
+                            <p className="font-bold">⭐ {stu.total_stars}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-[#24334D]/60">Lessons</p>
+                            <p className="font-bold">{stu.lessons_completed}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-[#24334D]/60">Streak</p>
+                            <p className="font-bold">{stu.streak_days}d</p>
+                          </div>
+                        </div>
+
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => openStudentDetail(stu.id)}
+                          className="w-full"
                         >
                           <Eye className="h-3.5 w-3.5" />
                           Inspect Progress
                         </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Tablet / Desktop Table */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-sm text-left">
+                      <thead>
+                        <tr className="border-b border-[#24334D]/10 text-xs uppercase text-[#24334D]/60">
+                          <th className="py-3 pr-4">Learner</th>
+                          <th className="py-3 pr-4">Class</th>
+                          <th className="py-3 pr-4">Age Group</th>
+                          <th className="py-3 pr-4">Stars</th>
+                          <th className="py-3 pr-4">Lessons</th>
+                          <th className="py-3 pr-4">Streak</th>
+                          <th className="py-3 text-right">Details</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredStudents.map((stu) => (
+                          <tr
+                            key={stu.id}
+                            className="border-b border-[#24334D]/6 last:border-none"
+                          >
+                            <td className="py-3 pr-4 font-bold flex items-center gap-2.5">
+                              <ChildAvatar avatarKey={stu.avatar_key} size="sm" />
+                              {stu.display_name}
+                            </td>
+                            <td className="py-3 pr-4 text-[#24334D]/80">
+                              {stu.class_name}
+                            </td>
+                            <td className="py-3 pr-4">
+                              <Badge variant="neutral">{stu.age_group}</Badge>
+                            </td>
+                            <td className="py-3 pr-4 font-bold">⭐ {stu.total_stars}</td>
+                            <td className="py-3 pr-4">{stu.lessons_completed}</td>
+                            <td className="py-3 pr-4">{stu.streak_days} days</td>
+                            <td className="py-3 text-right whitespace-nowrap">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openStudentDetail(stu.id)}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                Inspect Progress
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -426,6 +494,7 @@ function TeacherPortalContent() {
       <Dialog
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
+        size="lg"
         title={
           studentDetail
             ? `${studentDetail.child.display_name}'s Learning Progress`
@@ -436,8 +505,8 @@ function TeacherPortalContent() {
         {detailLoading ? (
           <Skeleton className="h-44 w-full" />
         ) : studentDetail ? (
-          <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1 text-sm">
-            <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="space-y-4 text-sm">
+            <div className="grid grid-cols-1 min-[360px]:grid-cols-3 gap-2 text-center">
               <div className="rounded-2xl bg-[#FFF5CF] p-3">
                 <p className="font-display text-lg font-bold">
                   {studentDetail.child.total_stars}

@@ -241,8 +241,8 @@ function AdminSettingsAuditPageContent() {
                       "Maximum size (MB) for teacher lesson media uploads."}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="flex items-end gap-3">
-                  <div className="flex-1">
+                <CardContent className="flex flex-col sm:flex-row sm:items-end gap-3">
+                  <div className="flex-1 w-full">
                     <label className="text-xs font-bold text-[#24334D]/75 block mb-1">
                       Max Upload Size (MB)
                     </label>
@@ -273,6 +273,7 @@ function AdminSettingsAuditPageContent() {
                         uploadSetting.description ?? undefined
                       )
                     }
+                    className="w-full sm:w-auto"
                   >
                     <Save className="h-4 w-4" />
                     Update Limit
@@ -398,7 +399,7 @@ function AdminSettingsAuditPageContent() {
                   e.preventDefault();
                   void loadData();
                 }}
-                className="flex flex-wrap items-center gap-2"
+                className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 w-full lg:w-auto"
               >
                 <div className="relative w-full sm:w-48">
                   <Search className="h-4 w-4 absolute left-3.5 top-3.5 text-[#24334D]/50" />
@@ -409,33 +410,35 @@ function AdminSettingsAuditPageContent() {
                     className="pl-9"
                   />
                 </div>
-                <select
-                  aria-label="Filter by resource type"
-                  value={resourceFilter}
-                  onChange={(e) => setResourceFilter(e.target.value)}
-                  className="h-11 rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
-                >
-                  <option value="">All Resources</option>
-                  <option value="user">user</option>
-                  <option value="class">class</option>
-                  <option value="subject">subject</option>
-                  <option value="lesson">lesson</option>
-                  <option value="theme">theme</option>
-                  <option value="platform_setting">platform_setting</option>
-                  <option value="child_artwork">child_artwork</option>
-                  <option value="lesson_resource">lesson_resource</option>
-                </select>
-                <select
-                  aria-label="Audit log limit"
-                  value={limit}
-                  onChange={(e) => setLimit(Number(e.target.value))}
-                  className="h-11 rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
-                >
-                  <option value={30}>30 rows</option>
-                  <option value={50}>50 rows</option>
-                  <option value={100}>100 rows</option>
-                </select>
-                <Button type="submit" variant="secondary">
+                <div className="grid grid-cols-2 sm:flex gap-2">
+                  <select
+                    aria-label="Filter by resource type"
+                    value={resourceFilter}
+                    onChange={(e) => setResourceFilter(e.target.value)}
+                    className="h-11 w-full sm:w-auto rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
+                  >
+                    <option value="">All Resources</option>
+                    <option value="user">user</option>
+                    <option value="class">class</option>
+                    <option value="subject">subject</option>
+                    <option value="lesson">lesson</option>
+                    <option value="theme">theme</option>
+                    <option value="platform_setting">platform_setting</option>
+                    <option value="child_artwork">child_artwork</option>
+                    <option value="lesson_resource">lesson_resource</option>
+                  </select>
+                  <select
+                    aria-label="Audit log limit"
+                    value={limit}
+                    onChange={(e) => setLimit(Number(e.target.value))}
+                    className="h-11 w-full sm:w-auto rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
+                  >
+                    <option value={30}>30 rows</option>
+                    <option value={50}>50 rows</option>
+                    <option value={100}>100 rows</option>
+                  </select>
+                </div>
+                <Button type="submit" variant="secondary" className="w-full sm:w-auto">
                   Apply Filters
                 </Button>
               </form>
@@ -451,19 +454,19 @@ function AdminSettingsAuditPageContent() {
                     key={log.id}
                     className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-2xl bg-[#FFF9F0] px-4 py-3 text-xs border border-[#24334D]/8"
                   >
-                    <div className="space-y-1">
+                    <div className="space-y-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="sky">{log.action}</Badge>
-                        <span className="font-bold text-[#24334D]">
+                        <span className="font-bold text-[#24334D] break-all">
                           {log.actor_email || "system"}
                         </span>
-                        <span className="text-[#24334D]/65">
+                        <span className="text-[#24334D]/65 break-all">
                           on {log.resource_type}
                           {log.resource_id ? ` (${log.resource_id})` : ""}
                         </span>
                       </div>
                       {Object.keys(log.details_json || {}).length > 0 && (
-                        <p className="font-mono text-[11px] text-[#24334D]/60">
+                        <p className="font-mono text-[11px] text-[#24334D]/60 break-all">
                           {JSON.stringify(log.details_json)}
                         </p>
                       )}

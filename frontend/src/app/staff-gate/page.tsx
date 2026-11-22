@@ -51,11 +51,11 @@ export default function StaffGatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF9F0] flex flex-col justify-center py-10 px-4">
-      <div className="mx-auto w-full max-w-md space-y-6">
+    <div className="min-h-dvh bg-[#FFF9F0] flex flex-col justify-center py-6 sm:py-10 px-3.5 sm:px-6">
+      <div className="mx-auto w-full max-w-md space-y-5 sm:space-y-6">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm font-bold text-[#24334D]/70 hover:text-[#24334D]"
+          className="inline-flex items-center gap-1.5 min-h-10 text-sm font-bold text-[#24334D]/70 hover:text-[#24334D]"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Home
         </Link>
@@ -70,9 +70,9 @@ export default function StaffGatePage() {
 
         <Card className="border-2 border-[#24334D]/12">
           <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <Lock className="h-5 w-5 text-[#24334D]" />
-              Authorized Staff Sign In
+            <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
+              <Lock className="h-5 w-5 text-[#24334D] shrink-0" />
+              <span>Authorized Staff Sign In</span>
             </CardTitle>
             <CardDescription>
               Private access for verified LittleSteps teachers and school administrators only.

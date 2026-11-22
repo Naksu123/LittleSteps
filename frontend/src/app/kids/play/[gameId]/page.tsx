@@ -54,8 +54,8 @@ function PlayGameContent() {
   }, [gameId]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FFF5CF]/55 via-[#FFF9F0] to-[#DCF2FD]/45 p-4 sm:p-6">
-      <div className="mx-auto max-w-4xl space-y-6">
+    <div className="min-h-dvh bg-gradient-to-b from-[#FFF5CF]/55 via-[#FFF9F0] to-[#DCF2FD]/45 px-3.5 sm:px-6 py-4 sm:py-6">
+      <div className="mx-auto max-w-4xl 2xl:max-w-5xl space-y-5 sm:space-y-6">
         <KidsHeader
           child={activeChild}
           backHref="/kids?tab=play"

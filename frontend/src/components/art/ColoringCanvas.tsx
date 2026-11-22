@@ -184,7 +184,7 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
   }
 
   return (
-    <div className="rounded-3xl bg-white p-5 sm:p-6 border-2 border-[#FF9C8C]/40 shadow-md space-y-5">
+    <div className="rounded-3xl bg-white p-4 sm:p-6 border-2 border-[#FF9C8C]/40 shadow-md space-y-4 sm:space-y-5">
       {error && <Alert tone="warning">{error}</Alert>}
       {savedNotice && <Alert tone="success">{savedNotice}</Alert>}
 
@@ -196,7 +196,7 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
             variant={tool === "brush" ? "secondary" : "outline"}
             size="md"
             onClick={() => setTool("brush")}
-            className="min-h-12"
+            className="min-h-11 sm:min-h-12"
           >
             <Paintbrush className="h-4 w-4" />
             Brush
@@ -206,7 +206,7 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
             variant={tool === "fill" ? "secondary" : "outline"}
             size="md"
             onClick={() => setTool("fill")}
-            className="min-h-12"
+            className="min-h-11 sm:min-h-12"
           >
             <PaintBucket className="h-4 w-4" />
             Fill
@@ -216,7 +216,7 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
             variant={tool === "eraser" ? "secondary" : "outline"}
             size="md"
             onClick={() => setTool("eraser")}
-            className="min-h-12"
+            className="min-h-11 sm:min-h-12"
           >
             <Eraser className="h-4 w-4" />
             Eraser
@@ -226,7 +226,7 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
             variant="ghost"
             size="md"
             onClick={() => renderTemplate(templateKey)}
-            className="min-h-12"
+            className="min-h-11 sm:min-h-12"
           >
             <Trash2 className="h-4 w-4" />
             Clear
@@ -243,7 +243,7 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
                 renderTemplate(tpl.key);
               }}
               className={cn(
-                "rounded-2xl px-3 py-2 text-xs font-bold border transition-all cursor-pointer",
+                "rounded-2xl min-h-10 px-3 py-2 text-xs font-bold border transition-all cursor-pointer",
                 templateKey === tpl.key
                   ? "bg-[#FFE58A] border-[#24334D]"
                   : "bg-[#FFF9F0] border-[#24334D]/12"
@@ -257,7 +257,7 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
 
       {/* Palette & Brush Size */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           {PALETTE.map((swatch) => (
             <button
               key={swatch.hex}
@@ -278,14 +278,14 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {BRUSH_SIZES.map((b) => (
             <button
               key={b.label}
               type="button"
               onClick={() => setBrushSize(b.size)}
               className={cn(
-                "rounded-2xl px-3 py-1.5 text-xs font-bold border cursor-pointer",
+                "rounded-2xl min-h-10 px-3 py-1.5 text-xs font-bold border cursor-pointer",
                 brushSize === b.size
                   ? "bg-[#24334D] text-white border-[#24334D]"
                   : "bg-[#FFF9F0] text-[#24334D] border-[#24334D]/12"
@@ -298,7 +298,7 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
       </div>
 
       {/* Canvas */}
-      <div className="rounded-3xl border-4 border-[#78C8F5]/40 overflow-hidden bg-white">
+      <div className="mx-auto w-full max-w-[min(100%,calc(62dvh*4/3))] rounded-3xl border-4 border-[#78C8F5]/40 overflow-hidden bg-white">
         <canvas
           ref={canvasRef}
           width={800}
@@ -327,7 +327,7 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
           size="kid"
           disabled={saving}
           onClick={handleSave}
-          className="shrink-0"
+          className="w-full sm:w-auto shrink-0"
         >
           <Save className="h-5 w-5" />
           {saving ? "Saving..." : "Save My Art"}

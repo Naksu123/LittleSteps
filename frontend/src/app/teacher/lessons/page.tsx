@@ -273,7 +273,7 @@ function TeacherLessonsContent() {
       {toast && <Alert tone="success">{toast}</Alert>}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             type="button"
             variant={tab === "lessons" ? "primary" : "outline"}
@@ -297,6 +297,7 @@ function TeacherLessonsContent() {
             type="button"
             variant="kids"
             onClick={() => setLessonModalOpen(true)}
+            className="w-full sm:w-auto"
           >
             <Plus className="h-4 w-4" />
             Create Lesson
@@ -306,6 +307,7 @@ function TeacherLessonsContent() {
             type="button"
             variant="kids"
             onClick={() => setThemeModalOpen(true)}
+            className="w-full sm:w-auto"
           >
             <Plus className="h-4 w-4" />
             Create Weekly Theme
@@ -411,12 +413,13 @@ function TeacherLessonsContent() {
       <Dialog
         open={lessonModalOpen}
         onClose={() => setLessonModalOpen(false)}
+        size="lg"
         title="Create Kindergarten Lesson"
         description="Build a child-friendly lesson with an opening story slide."
       >
         <form
           onSubmit={handleLessonSubmit(onCreateLesson)}
-          className="space-y-3 max-h-[70vh] overflow-y-auto pr-1"
+          className="space-y-3"
         >
           <div className="space-y-1">
             <label htmlFor="lesson_title" className="text-sm font-bold">
@@ -434,14 +437,14 @@ function TeacherLessonsContent() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <label htmlFor="lesson_subject" className="text-sm font-bold">
                 Learning Module
               </label>
               <select
                 id="lesson_subject"
-                className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm"
+                className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
                 {...regLesson("subject_id")}
               >
                 <option value="">Select subject</option>
@@ -463,7 +466,7 @@ function TeacherLessonsContent() {
               </label>
               <select
                 id="lesson_theme"
-                className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm"
+                className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
                 {...regLesson("theme_id")}
               >
                 <option value="">Optional</option>
@@ -487,14 +490,14 @@ function TeacherLessonsContent() {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1">
               <label htmlFor="lesson_age" className="text-xs font-bold">
                 Age Group
               </label>
               <select
                 id="lesson_age"
-                className="h-10 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-2 text-xs"
+                className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
                 {...regLesson("age_group")}
               >
                 <option value="4-5">4–5</option>
@@ -518,7 +521,7 @@ function TeacherLessonsContent() {
               </label>
               <select
                 id="lesson_status"
-                className="h-10 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-2 text-xs"
+                className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
                 {...regLesson("status")}
               >
                 <option value="published">Published</option>
@@ -529,13 +532,13 @@ function TeacherLessonsContent() {
 
           <div className="rounded-2xl bg-[#FFF9F0] p-3 space-y-2 border border-[#24334D]/8">
             <p className="text-xs font-bold text-[#175B82]">Opening Slide</p>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
               <Input
                 placeholder="Emoji"
                 {...regLesson("slide_emoji")}
               />
               <Input
-                className="col-span-3"
+                className="sm:col-span-3"
                 placeholder="Slide Title"
                 {...regLesson("slide_title")}
               />
@@ -546,15 +549,21 @@ function TeacherLessonsContent() {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="ghost"
               onClick={() => setLessonModalOpen(false)}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button type="submit" variant="primary" disabled={savingLesson}>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={savingLesson}
+              className="w-full sm:w-auto"
+            >
               {savingLesson ? "Saving..." : "Save Lesson"}
             </Button>
           </div>
@@ -568,14 +577,14 @@ function TeacherLessonsContent() {
         title="Create Weekly Learning Theme"
       >
         <form onSubmit={handleThemeSubmit(onCreateTheme)} className="space-y-3">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div className="space-y-1">
               <label htmlFor="wk_num" className="text-xs font-bold">
                 Week #
               </label>
               <Input id="wk_num" type="number" {...regTheme("week_number")} />
             </div>
-            <div className="col-span-2 space-y-1">
+            <div className="sm:col-span-2 space-y-1">
               <label htmlFor="th_title" className="text-xs font-bold">
                 Theme Title
               </label>
@@ -595,15 +604,21 @@ function TeacherLessonsContent() {
             placeholder="What your child learns (Parent Guide)"
             {...regTheme("what_child_learns")}
           />
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="ghost"
               onClick={() => setThemeModalOpen(false)}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button type="submit" variant="primary" disabled={savingTheme}>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={savingTheme}
+              className="w-full sm:w-auto"
+            >
               {savingTheme ? "Saving..." : "Save Theme"}
             </Button>
           </div>
@@ -686,15 +701,21 @@ function TeacherLessonsContent() {
               onChange={(e) => setActCorrect(Number(e.target.value))}
             />
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">
             <Button
               type="button"
               variant="ghost"
               onClick={() => setActivityLesson(null)}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button type="submit" variant="primary" disabled={savingAct}>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={savingAct}
+              className="w-full sm:w-auto"
+            >
               {savingAct ? "Saving..." : "Add Question"}
             </Button>
           </div>

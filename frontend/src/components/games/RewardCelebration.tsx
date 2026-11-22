@@ -29,27 +29,27 @@ export function RewardCelebration({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#24334D]/55 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#24334D]/55 p-3 sm:p-4 backdrop-blur-xs overflow-y-auto"
     >
       <motion.div
         initial={{ scale: 0.82, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", stiffness: 260, damping: 20 }}
-        className="w-full max-w-md rounded-3xl bg-white p-7 text-center shadow-2xl border-4 border-[#FFE58A] space-y-5"
+        className="w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain rounded-3xl bg-white p-5 sm:p-7 text-center shadow-2xl border-4 border-[#FFE58A] space-y-4 sm:space-y-5"
       >
         <motion.div
           animate={{ rotate: [0, -8, 8, 0], scale: [1, 1.12, 1] }}
           transition={{ duration: 0.9, repeat: 1 }}
-          className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[#FFF5CF] text-6xl shadow-sm"
+          className="mx-auto flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-[#FFF5CF] text-5xl sm:text-6xl shadow-sm"
         >
           🌟
         </motion.div>
 
         <div className="space-y-1.5">
-          <h2 className="font-display text-3xl font-bold text-[#24334D]">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#24334D]">
             {encouragement}
           </h2>
-          <p className="font-display text-2xl font-bold text-[#9A7100]">
+          <p className="font-display text-xl sm:text-2xl font-bold text-[#9A7100]">
             +{starsAwarded} ⭐
           </p>
           {starsAwarded === 0 && (
@@ -82,19 +82,26 @@ export function RewardCelebration({
           </p>
         )}
 
-        <div className="flex flex-wrap justify-center gap-3 pt-1">
+        <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2.5 sm:gap-3 pt-1">
           {onPlayAgain && (
             <Button
               type="button"
               variant="secondary"
               size="kid"
               onClick={onPlayAgain}
+              className="w-full sm:w-auto"
             >
               <RotateCcw className="h-5 w-5" />
               Play Again
             </Button>
           )}
-          <Button type="button" variant="kids" size="kid" onClick={onBack}>
+          <Button
+            type="button"
+            variant="kids"
+            size="kid"
+            onClick={onBack}
+            className="w-full sm:w-auto"
+          >
             <ArrowLeft className="h-5 w-5" />
             {backLabel}
           </Button>

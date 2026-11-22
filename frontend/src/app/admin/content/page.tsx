@@ -287,7 +287,7 @@ function AdminContentStoragePageContent() {
                     <Input type="number" {...register("sort_order")} />
                   </div>
                 </div>
-                <div className="pt-5">
+                <div className="pt-1 lg:pt-5 sm:col-span-2 lg:col-span-1">
                   <Button
                     type="submit"
                     variant="secondary"
@@ -300,7 +300,7 @@ function AdminContentStoragePageContent() {
                 </div>
               </form>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {subjects.map((subj) => (
                   <div
                     key={subj.id}
@@ -345,22 +345,22 @@ function AdminContentStoragePageContent() {
           </Card>
 
           {/* Content Governance: Lessons & Themes */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-[#166041]" />
-                  Lesson Publication Control ({lessons.length})
+                  <BookOpen className="h-5 w-5 text-[#166041] shrink-0" />
+                  <span>Lesson Publication Control ({lessons.length})</span>
                 </CardTitle>
                 <CardDescription>
                   Publish, draft, or archive kindergarten lessons school-wide.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2.5 max-h-96 overflow-y-auto">
+              <CardContent className="space-y-2.5 max-h-80 sm:max-h-96 overflow-y-auto scrollbar-subtle">
                 {lessons.map((lesson) => (
                   <div
                     key={lesson.id}
-                    className="flex items-center justify-between gap-3 rounded-2xl bg-[#FFF9F0] px-4 py-3 border border-[#24334D]/8"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl bg-[#FFF9F0] px-4 py-3 border border-[#24334D]/8"
                   >
                     <div className="min-w-0">
                       <p className="font-bold text-sm truncate">
@@ -380,7 +380,7 @@ function AdminContentStoragePageContent() {
                           e.target.value as "draft" | "published" | "archived"
                         )
                       }
-                      className="h-9 rounded-xl border border-[#24334D]/15 bg-white px-2.5 text-xs font-bold"
+                      className="h-10 w-full sm:w-auto rounded-xl border border-[#24334D]/15 bg-white px-2.5 text-xs font-bold shrink-0"
                     >
                       <option value="published">Published</option>
                       <option value="draft">Draft</option>
@@ -394,18 +394,18 @@ function AdminContentStoragePageContent() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Archive className="h-5 w-5 text-[#9A7100]" />
-                  Weekly Learning Themes ({themes.length})
+                  <Archive className="h-5 w-5 text-[#9A7100] shrink-0" />
+                  <span>Weekly Learning Themes ({themes.length})</span>
                 </CardTitle>
                 <CardDescription>
                   Control visibility for weekly family themes and home guides.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2.5 max-h-96 overflow-y-auto">
+              <CardContent className="space-y-2.5 max-h-80 sm:max-h-96 overflow-y-auto scrollbar-subtle">
                 {themes.map((theme) => (
                   <div
                     key={theme.id}
-                    className="flex items-center justify-between gap-3 rounded-2xl bg-[#FFF9F0] px-4 py-3 border border-[#24334D]/8"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl bg-[#FFF9F0] px-4 py-3 border border-[#24334D]/8"
                   >
                     <div className="min-w-0">
                       <p className="font-bold text-sm truncate">
@@ -425,7 +425,7 @@ function AdminContentStoragePageContent() {
                           e.target.value as "draft" | "published" | "archived"
                         )
                       }
-                      className="h-9 rounded-xl border border-[#24334D]/15 bg-white px-2.5 text-xs font-bold"
+                      className="h-10 w-full sm:w-auto rounded-xl border border-[#24334D]/15 bg-white px-2.5 text-xs font-bold shrink-0"
                     >
                       <option value="published">Published</option>
                       <option value="draft">Draft</option>
@@ -443,15 +443,15 @@ function AdminContentStoragePageContent() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <HardDrive className="h-5 w-5 text-[#4C328B]" />
-                    Cloud Storage & Uploaded Media
+                    <HardDrive className="h-5 w-5 text-[#4C328B] shrink-0" />
+                    <span>Cloud Storage &amp; Uploaded Media</span>
                   </CardTitle>
                   <CardDescription>
                     Opaque asset keys protect child privacy while allowing safe cleanup.
                   </CardDescription>
                 </div>
                 {storage && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="sky">
                       <Database className="h-3.5 w-3.5" />
                       Backend: {storage.storage_backend}
@@ -463,67 +463,65 @@ function AdminContentStoragePageContent() {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="overflow-x-auto">
+            <CardContent className="space-y-4">
               {!storage || storage.items.length === 0 ? (
                 <p className="text-sm text-[#24334D]/65 py-6 text-center">
                   No uploaded lesson media or saved artworks in storage yet.
                 </p>
               ) : (
-                <table className="w-full text-sm text-left">
-                  <thead>
-                    <tr className="border-b border-[#24334D]/10 text-xs uppercase text-[#24334D]/60">
-                      <th className="py-3 pr-4">Title</th>
-                      <th className="py-3 pr-4">Type</th>
-                      <th className="py-3 pr-4">Source</th>
-                      <th className="py-3 pr-4">MIME / Size</th>
-                      <th className="py-3 pr-4">Storage Key</th>
-                      <th className="py-3 pr-4">Uploaded</th>
-                      <th className="py-3 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <>
+                  {/* Mobile Stacked Cards */}
+                  <div className="md:hidden space-y-3">
                     {storage.items.map((item) => {
                       const key = `${item.item_type}:${item.id}`;
                       const confirming = confirmDeleteKey === key;
                       return (
-                        <tr
+                        <div
                           key={key}
-                          className="border-b border-[#24334D]/6 last:border-none"
+                          className="rounded-2xl bg-[#FFF9F0] p-4 border border-[#24334D]/10 space-y-2.5"
                         >
-                          <td className="py-3 pr-4 font-bold">{item.title}</td>
-                          <td className="py-3 pr-4">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm text-[#24334D] break-words">
+                                {item.title}
+                              </p>
+                              <p className="text-xs text-[#24334D]/65">
+                                {item.parent_label}
+                              </p>
+                            </div>
                             <Badge
                               variant={
                                 item.item_type === "child_artwork"
                                   ? "lavender"
                                   : "sky"
                               }
+                              className="shrink-0"
                             >
                               {item.item_type === "child_artwork"
                                 ? "Artwork"
                                 : "Lesson Media"}
                             </Badge>
-                          </td>
-                          <td className="py-3 pr-4 text-xs text-[#24334D]/75">
-                            {item.parent_label}
-                          </td>
-                          <td className="py-3 pr-4 text-xs text-[#24334D]/75">
-                            {item.mime_type} • {formatBytes(item.file_size_bytes)}
-                          </td>
-                          <td className="py-3 pr-4 text-xs font-mono text-[#24334D]/60 max-w-[180px] truncate">
-                            {item.storage_key}
-                          </td>
-                          <td className="py-3 pr-4 text-xs text-[#24334D]/60">
-                            {formatShortDate(item.created_at)}
-                          </td>
-                          <td className="py-3 text-right whitespace-nowrap">
+                          </div>
+
+                          <div className="text-xs text-[#24334D]/70 space-y-1">
+                            <p>
+                              {item.mime_type} • {formatBytes(item.file_size_bytes)} •{" "}
+                              {formatShortDate(item.created_at)}
+                            </p>
+                            <p className="font-mono text-[11px] text-[#24334D]/60 truncate">
+                              {item.storage_key}
+                            </p>
+                          </div>
+
+                          <div className="pt-1">
                             {confirming ? (
-                              <div className="inline-flex items-center gap-1.5">
+                              <div className="flex gap-2">
                                 <Button
                                   size="sm"
                                   variant="coral"
                                   disabled={busyId === item.id}
                                   onClick={() => handleDeleteStorageItem(item)}
+                                  className="flex-1"
                                 >
                                   Confirm
                                 </Button>
@@ -531,6 +529,7 @@ function AdminContentStoragePageContent() {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => setConfirmDeleteKey(null)}
+                                  className="flex-1"
                                 >
                                   Cancel
                                 </Button>
@@ -540,17 +539,104 @@ function AdminContentStoragePageContent() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setConfirmDeleteKey(key)}
+                                className="w-full"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                                 Remove
                               </Button>
                             )}
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </div>
+
+                  {/* Tablet / Desktop Table */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full min-w-[700px] text-sm text-left">
+                      <thead>
+                        <tr className="border-b border-[#24334D]/10 text-xs uppercase text-[#24334D]/60">
+                          <th className="py-3 pr-4">Title</th>
+                          <th className="py-3 pr-4">Type</th>
+                          <th className="py-3 pr-4">Source</th>
+                          <th className="py-3 pr-4">MIME / Size</th>
+                          <th className="py-3 pr-4">Storage Key</th>
+                          <th className="py-3 pr-4">Uploaded</th>
+                          <th className="py-3 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {storage.items.map((item) => {
+                          const key = `${item.item_type}:${item.id}`;
+                          const confirming = confirmDeleteKey === key;
+                          return (
+                            <tr
+                              key={key}
+                              className="border-b border-[#24334D]/6 last:border-none"
+                            >
+                              <td className="py-3 pr-4 font-bold">{item.title}</td>
+                              <td className="py-3 pr-4">
+                                <Badge
+                                  variant={
+                                    item.item_type === "child_artwork"
+                                      ? "lavender"
+                                      : "sky"
+                                  }
+                                >
+                                  {item.item_type === "child_artwork"
+                                    ? "Artwork"
+                                    : "Lesson Media"}
+                                </Badge>
+                              </td>
+                              <td className="py-3 pr-4 text-xs text-[#24334D]/75">
+                                {item.parent_label}
+                              </td>
+                              <td className="py-3 pr-4 text-xs text-[#24334D]/75">
+                                {item.mime_type} • {formatBytes(item.file_size_bytes)}
+                              </td>
+                              <td className="py-3 pr-4 text-xs font-mono text-[#24334D]/60 max-w-[180px] truncate">
+                                {item.storage_key}
+                              </td>
+                              <td className="py-3 pr-4 text-xs text-[#24334D]/60">
+                                {formatShortDate(item.created_at)}
+                              </td>
+                              <td className="py-3 text-right whitespace-nowrap">
+                                {confirming ? (
+                                  <div className="inline-flex items-center gap-1.5">
+                                    <Button
+                                      size="sm"
+                                      variant="coral"
+                                      disabled={busyId === item.id}
+                                      onClick={() => handleDeleteStorageItem(item)}
+                                    >
+                                      Confirm
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setConfirmDeleteKey(null)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setConfirmDeleteKey(key)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    Remove
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

@@ -292,7 +292,7 @@ function AdminClassesPageContent() {
               <Input placeholder="Room C-3" {...register("room_label")} />
             </div>
 
-            <div className="pt-5">
+            <div className="pt-1 lg:pt-5 sm:col-span-2 lg:col-span-1">
               <Button
                 type="submit"
                 variant="secondary"
@@ -397,7 +397,7 @@ function AdminClassesPageContent() {
                         </div>
                       )}
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <select
                           aria-label={`Select teacher for ${cls.name}`}
                           value={selectedTeacherByClass[cls.id] ?? ""}
@@ -407,7 +407,7 @@ function AdminClassesPageContent() {
                               [cls.id]: e.target.value,
                             }))
                           }
-                          className="h-10 flex-1 rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-xs font-semibold"
+                          className="h-11 sm:h-10 flex-1 min-w-0 rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-xs font-semibold"
                         >
                           <option value="">Select teacher to assign...</option>
                           {availableTeachers.map((e) => (
@@ -424,6 +424,7 @@ function AdminClassesPageContent() {
                             busyId === `teacher-${cls.id}`
                           }
                           onClick={() => handleAssignTeacher(cls)}
+                          className="w-full sm:w-auto shrink-0"
                         >
                           <UserPlus className="h-3.5 w-3.5" />
                           Assign
@@ -448,10 +449,10 @@ function AdminClassesPageContent() {
                               key={s.child_id}
                               className="flex items-center justify-between gap-2 rounded-2xl bg-[#FFF9F0] px-3 py-2 text-xs border border-[#24334D]/8"
                             >
-                              <div className="flex items-center gap-2">
-                                <ChildAvatar avatarKey={s.avatar_key} size="sm" />
-                                <div>
-                                  <p className="font-bold text-[#24334D]">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <ChildAvatar avatarKey={s.avatar_key} size="sm" className="shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="font-bold text-[#24334D] truncate">
                                     {s.display_name}
                                   </p>
                                   <p className="text-[11px] text-[#24334D]/60">
@@ -477,7 +478,7 @@ function AdminClassesPageContent() {
                         </div>
                       )}
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <select
                           aria-label={`Select learner to enroll in ${cls.name}`}
                           value={selectedChildByClass[cls.id] ?? ""}
@@ -487,7 +488,7 @@ function AdminClassesPageContent() {
                               [cls.id]: e.target.value,
                             }))
                           }
-                          className="h-10 flex-1 rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-xs font-semibold"
+                          className="h-11 sm:h-10 flex-1 min-w-0 rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-xs font-semibold"
                         >
                           <option value="">Select learner to enroll...</option>
                           {availableChildren.map((c) => (
@@ -504,6 +505,7 @@ function AdminClassesPageContent() {
                             busyId === `enroll-${cls.id}`
                           }
                           onClick={() => handleEnrollChild(cls)}
+                          className="w-full sm:w-auto shrink-0"
                         >
                           <Plus className="h-3.5 w-3.5" />
                           Enroll
@@ -524,61 +526,123 @@ function AdminClassesPageContent() {
                 Overview of all kindergarten profiles, guardians, class placements, and stars.
               </CardDescription>
             </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead>
-                  <tr className="border-b border-[#24334D]/10 text-xs uppercase text-[#24334D]/60">
-                    <th className="py-3 pr-4">Learner</th>
-                    <th className="py-3 pr-4">Age Group</th>
-                    <th className="py-3 pr-4">Parent / Guardian</th>
-                    <th className="py-3 pr-4">Enrolled Classes</th>
-                    <th className="py-3 pr-4">Stars</th>
-                    <th className="py-3 text-right">Streak</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {children.map((child) => (
-                    <tr
-                      key={child.id}
-                      className="border-b border-[#24334D]/6 last:border-none"
-                    >
-                      <td className="py-3 pr-4">
-                        <div className="flex items-center gap-2.5 font-bold">
-                          <ChildAvatar avatarKey={child.avatar_key} size="sm" />
-                          <span>{child.display_name}</span>
+            <CardContent className="space-y-4">
+              {children.length === 0 ? (
+                <p className="text-sm text-[#24334D]/65 py-6 text-center">
+                  No kindergarten learners enrolled yet.
+                </p>
+              ) : (
+                <>
+                  {/* Mobile Stacked Cards */}
+                  <div className="md:hidden space-y-3">
+                    {children.map((child) => (
+                      <div
+                        key={child.id}
+                        className="rounded-2xl bg-[#FFF9F0] p-4 border border-[#24334D]/10 space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <ChildAvatar
+                              avatarKey={child.avatar_key}
+                              size="sm"
+                              className="shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm text-[#24334D] truncate">
+                                {child.display_name}
+                              </p>
+                              <p className="text-xs text-[#24334D]/65 truncate">
+                                Guardian:{" "}
+                                {child.parent_names.length > 0
+                                  ? child.parent_names.join(", ")
+                                  : "—"}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant="neutral" className="shrink-0">
+                            Ages {child.age_group}
+                          </Badge>
                         </div>
-                      </td>
-                      <td className="py-3 pr-4 text-xs font-bold">
-                        {child.age_group}
-                      </td>
-                      <td className="py-3 pr-4 text-xs text-[#24334D]/75">
-                        {child.parent_names.length > 0
-                          ? child.parent_names.join(", ")
-                          : "—"}
-                      </td>
-                      <td className="py-3 pr-4">
-                        <div className="flex flex-wrap gap-1">
-                          {child.class_names.length > 0 ? (
-                            child.class_names.map((cn) => (
-                              <Badge key={cn} variant="sky">
-                                {cn}
-                              </Badge>
-                            ))
-                          ) : (
-                            <Badge variant="neutral">Unassigned</Badge>
-                          )}
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#24334D]/8 text-xs">
+                          <div className="flex flex-wrap gap-1">
+                            {child.class_names.length > 0 ? (
+                              child.class_names.map((cn) => (
+                                <Badge key={cn} variant="sky">
+                                  {cn}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge variant="neutral">Unassigned</Badge>
+                            )}
+                          </div>
+                          <span className="font-bold text-[#24334D]">
+                            {child.total_stars} ⭐ · {child.streak_days}d
+                          </span>
                         </div>
-                      </td>
-                      <td className="py-3 pr-4 text-xs font-bold">
-                        {child.total_stars} ⭐
-                      </td>
-                      <td className="py-3 text-right text-xs font-bold">
-                        {child.streak_days}d
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Tablet / Desktop Table */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-sm text-left">
+                      <thead>
+                        <tr className="border-b border-[#24334D]/10 text-xs uppercase text-[#24334D]/60">
+                          <th className="py-3 pr-4">Learner</th>
+                          <th className="py-3 pr-4">Age Group</th>
+                          <th className="py-3 pr-4">Parent / Guardian</th>
+                          <th className="py-3 pr-4">Enrolled Classes</th>
+                          <th className="py-3 pr-4">Stars</th>
+                          <th className="py-3 text-right">Streak</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {children.map((child) => (
+                          <tr
+                            key={child.id}
+                            className="border-b border-[#24334D]/6 last:border-none"
+                          >
+                            <td className="py-3 pr-4">
+                              <div className="flex items-center gap-2.5 font-bold">
+                                <ChildAvatar avatarKey={child.avatar_key} size="sm" />
+                                <span>{child.display_name}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 pr-4 text-xs font-bold">
+                              {child.age_group}
+                            </td>
+                            <td className="py-3 pr-4 text-xs text-[#24334D]/75">
+                              {child.parent_names.length > 0
+                                ? child.parent_names.join(", ")
+                                : "—"}
+                            </td>
+                            <td className="py-3 pr-4">
+                              <div className="flex flex-wrap gap-1">
+                                {child.class_names.length > 0 ? (
+                                  child.class_names.map((cn) => (
+                                    <Badge key={cn} variant="sky">
+                                      {cn}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <Badge variant="neutral">Unassigned</Badge>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 pr-4 text-xs font-bold">
+                              {child.total_stars} ⭐
+                            </td>
+                            <td className="py-3 text-right text-xs font-bold">
+                              {child.streak_days}d
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </>

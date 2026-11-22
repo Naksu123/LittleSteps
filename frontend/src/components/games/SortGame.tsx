@@ -84,11 +84,11 @@ export function SortGame({ config, onComplete }: SortGameProps) {
   }
 
   return (
-    <div className="rounded-3xl bg-white p-6 sm:p-8 border-2 border-[#78C8F5]/35 shadow-md space-y-6">
+    <div className="rounded-3xl bg-white p-4 sm:p-6 lg:p-8 border-2 border-[#78C8F5]/35 shadow-md space-y-5 sm:space-y-6">
       <div
         role="status"
         className={cn(
-          "rounded-2xl px-5 py-3 text-center font-display text-lg font-bold",
+          "rounded-2xl px-4 sm:px-5 py-3 text-center font-display text-base sm:text-lg font-bold",
           tone === "success"
             ? "bg-[#DDF8EC] text-[#166041]"
             : tone === "try"
@@ -104,7 +104,7 @@ export function SortGame({ config, onComplete }: SortGameProps) {
         <p className="font-display text-sm font-bold text-[#24334D]/70">
           Items to Sort ({remaining.length} left)
         </p>
-        <div className="flex flex-wrap gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-3">
           {remaining.map((item) => {
             const active = item.id === selectedId;
             return (
@@ -113,9 +113,9 @@ export function SortGame({ config, onComplete }: SortGameProps) {
                 type="button"
                 onClick={() => setSelectedId(item.id)}
                 className={cn(
-                  "min-h-20 min-w-[116px] rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 border-2 transition-all cursor-pointer",
+                  "min-h-[88px] rounded-2xl p-2.5 sm:p-3 flex flex-col items-center justify-center gap-1.5 border-2 transition-all cursor-pointer",
                   active
-                    ? "bg-[#FFF5CF] border-[#24334D] ring-4 ring-[#FFE58A] scale-105"
+                    ? "bg-[#FFF5CF] border-[#24334D] ring-4 ring-[#FFE58A] scale-[1.03]"
                     : "bg-[#FFF9F0] border-[#24334D]/12 hover:bg-[#DCF2FD]/50"
                 )}
               >
@@ -123,12 +123,12 @@ export function SortGame({ config, onComplete }: SortGameProps) {
                   <ShapeIcon
                     shape={item.shape}
                     color={item.color || "#78C8F5"}
-                    size={44}
+                    size={40}
                   />
                 ) : (
-                  <span className="text-4xl">{item.emoji}</span>
+                  <span className="text-3xl sm:text-4xl">{item.emoji}</span>
                 )}
-                <span className="font-display text-sm font-bold">
+                <span className="font-display text-xs sm:text-sm font-bold text-center break-words">
                   {item.label}
                 </span>
               </button>
@@ -140,7 +140,7 @@ export function SortGame({ config, onComplete }: SortGameProps) {
       {/* Target Bins */}
       <div
         className={cn(
-          "grid grid-cols-1 gap-4",
+          "grid grid-cols-1 gap-3 sm:gap-4",
           config.bins.length <= 2 ? "sm:grid-cols-2" : "sm:grid-cols-3"
         )}
       >
@@ -151,7 +151,7 @@ export function SortGame({ config, onComplete }: SortGameProps) {
               key={bin.key}
               type="button"
               onClick={() => handleBinTap(bin.key)}
-              className="min-h-[160px] rounded-3xl bg-[#FFF9F0] border-2 border-dashed border-[#24334D]/25 p-4 flex flex-col items-center justify-between gap-3 hover:bg-[#DDF8EC]/50 transition-colors cursor-pointer"
+              className="min-h-[132px] sm:min-h-[160px] rounded-3xl bg-[#FFF9F0] border-2 border-dashed border-[#24334D]/25 p-4 flex flex-col items-center justify-between gap-3 hover:bg-[#DDF8EC]/50 transition-colors cursor-pointer"
             >
               <div className="flex flex-col items-center gap-1">
                 {bin.shape ? (

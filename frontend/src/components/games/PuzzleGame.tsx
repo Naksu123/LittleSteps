@@ -46,15 +46,22 @@ function PieceVisual({
   return (
     <div
       className={cn(
-        "relative w-24 h-24 overflow-hidden rounded-2xl border-2 border-[#24334D]/15 select-none",
+        "relative overflow-hidden rounded-2xl border-2 border-[#24334D]/15 select-none",
         dimmed && "opacity-20"
       )}
-      style={{ backgroundColor: bg }}
+      style={{
+        backgroundColor: bg,
+        width: "var(--piece-size)",
+        height: "var(--piece-size)",
+      }}
     >
       <div
-        className="w-48 h-48 flex items-center justify-center text-[128px] leading-none"
+        className="flex items-center justify-center leading-none"
         style={{
-          transform: `translate(${-col * 96}px, ${-row * 96}px)`,
+          width: "calc(var(--piece-size) * 2)",
+          height: "calc(var(--piece-size) * 2)",
+          fontSize: "calc(var(--piece-size) * 1.32)",
+          transform: `translate(calc(${-col} * var(--piece-size)), calc(${-row} * var(--piece-size)))`,
         }}
       >
         {emoji}
@@ -139,9 +146,12 @@ export function PuzzleGame({
   }
 
   return (
-    <div className="rounded-3xl bg-white p-6 sm:p-8 border-2 border-[#78C8F5]/35 shadow-md space-y-6">
+    <div
+      className="rounded-3xl bg-white p-4 sm:p-6 lg:p-8 border-2 border-[#78C8F5]/35 shadow-md space-y-5 sm:space-y-6"
+      style={{ ["--piece-size" as string]: "clamp(72px, 22vw, 104px)" }}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-2xl font-bold text-[#24334D]">
+        <h2 className="font-display text-xl sm:text-2xl font-bold text-[#24334D]">
           Build: {picture.label}
         </h2>
         <span className="font-display text-sm font-bold text-[#24334D]/65">
@@ -151,14 +161,14 @@ export function PuzzleGame({
 
       <div
         role="status"
-        className="rounded-2xl bg-[#DCF2FD]/70 px-5 py-3 text-center font-display text-lg font-bold text-[#175B82]"
+        className="rounded-2xl bg-[#DCF2FD]/70 px-4 sm:px-5 py-3 text-center font-display text-base sm:text-lg font-bold text-[#175B82]"
       >
         {feedback}
       </div>
 
-      <div className="flex flex-col md:flex-row items-center justify-around gap-8">
+      <div className="flex flex-col md:flex-row items-center justify-around gap-6 sm:gap-8">
         {/* 2x2 Board */}
-        <div className="grid grid-cols-2 gap-1.5 rounded-3xl bg-[#FFF9F0] p-3 border-2 border-[#24334D]/15">
+        <div className="grid grid-cols-2 gap-1.5 rounded-3xl bg-[#FFF9F0] p-2.5 sm:p-3 border-2 border-[#24334D]/15">
           {SLOTS.map((slotIdx) => {
             const isPlaced = placedSlots.includes(slotIdx);
             return (
@@ -170,7 +180,13 @@ export function PuzzleGame({
                   className="cursor-pointer rounded-2xl focus-visible:ring-2 focus-visible:ring-[#24334D]"
                 >
                   {difficulty === "hard" && !isPlaced ? (
-                    <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-[#24334D]/25 bg-white flex items-center justify-center font-display text-2xl font-bold text-[#24334D]/30 select-none">
+                    <div
+                      className="rounded-2xl border-2 border-dashed border-[#24334D]/25 bg-white flex items-center justify-center font-display text-2xl font-bold text-[#24334D]/30 select-none"
+                      style={{
+                        width: "var(--piece-size)",
+                        height: "var(--piece-size)",
+                      }}
+                    >
                       ?
                     </div>
                   ) : (
@@ -191,7 +207,7 @@ export function PuzzleGame({
           <p className="font-display text-sm font-bold text-[#24334D]/70">
             Puzzle Pieces
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
             {trayPieces.map((pieceIdx) => {
               const selected = selectedPiece === pieceIdx;
               return (

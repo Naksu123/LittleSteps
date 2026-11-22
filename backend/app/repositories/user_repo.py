@@ -1,5 +1,5 @@
 from typing import Optional
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.user import Role, User, UserRole
@@ -9,7 +9,7 @@ def get_user_by_email(db: Session, email: str) -> Optional[User]:
     stmt = (
         select(User)
         .options(selectinload(User.user_roles).selectinload(UserRole.role))
-        .where(User.email == email.lower().strip())
+        .where(func.lower(User.email) == email.lower().strip())
     )
     return db.scalar(stmt)
 

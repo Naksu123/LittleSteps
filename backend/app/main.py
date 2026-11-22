@@ -1,7 +1,10 @@
+import logging
 import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 import app.models  # noqa: F401
 from app.api.routes import admin, artworks, auth, children, content, health, parent, progress, teacher
@@ -12,17 +15,32 @@ from app.db.seed import seed_database
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.request_logging import RequestLoggingMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.models import Role, Subject
+
+logger = logging.getLogger("littlesteps.startup")
 
 
 def _ensure_serverless_db_ready() -> None:
-    """Auto-create tables and seed data on Vercel serverless cold start or when SEED_ON_START=true."""
+    """Ensure tables exist and initial seed data is present without overwriting user accounts."""
     if settings.APP_ENV.lower() == "test":
         return
     if not (settings.SEED_ON_START or os.getenv("VERCEL")):
         return
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine, checkfirst=True)
+    except IntegrityError:
+        logger.warning("Concurrent DDL race during table initialization; continuing.")
+
     with SessionLocal() as session:
-        seed_database(session)
+        has_roles = session.scalar(select(Role.id).limit(1)) is not None
+        has_subjects = session.scalar(select(Subject.id).limit(1)) is not None
+        if has_roles and has_subjects:
+            return
+        try:
+            seed_database(session, sync_existing_users=False)
+        except IntegrityError:
+            session.rollback()
+            logger.warning("Concurrent seed race on startup; existing data preserved.")
 
 
 def create_app() -> FastAPI:
@@ -47,15 +65,28 @@ def create_app() -> FastAPI:
         openapi_url=None if is_production else "/openapi.json",
     )
 
-    application.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins_list,
-        allow_origin_regex=r"https://.*\.vercel\.app",
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["*"],
-        max_age=3600,
+    cors_origins = settings.cors_origins_list
+    only_local_origins = all(
+        "localhost" in origin or "127.0.0.1" in origin for origin in cors_origins
     )
+    cors_kwargs: dict[str, object] = {
+        "allow_origins": cors_origins,
+        "allow_credentials": True,
+        "allow_methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        "allow_headers": [
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin",
+            "X-Requested-With",
+        ],
+        "expose_headers": ["X-Request-ID"],
+        "max_age": 3600,
+    }
+    if not is_production or only_local_origins:
+        cors_kwargs["allow_origin_regex"] = r"https://.*\.vercel\.app"
+
+    application.add_middleware(CORSMiddleware, **cors_kwargs)
     application.add_middleware(SecurityHeadersMiddleware)
     application.add_middleware(
         RateLimitMiddleware,

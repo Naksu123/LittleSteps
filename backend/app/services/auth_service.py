@@ -1,13 +1,14 @@
 import hmac
-import os
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.database import is_ephemeral_serverless_sqlite
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -17,11 +18,9 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import (
-    AdminProfile,
     ParentProfile,
     RefreshToken,
     Role,
-    TeacherProfile,
     User,
     UserRole,
 )
@@ -29,66 +28,14 @@ from app.repositories.user_repo import get_role_by_name, get_user_by_email, get_
 from app.services.audit_service import record_audit
 
 
-def ensure_user_from_token_claims(
+def get_authenticated_user_from_claims(
     db: Session, payload: dict[str, Any]
 ) -> Optional[User]:
-    """Resolve authenticated user by ID or email, re-hydrating across ephemeral serverless workers if needed."""
+    """Resolve authenticated user strictly from the persistent database by subject ID."""
     sub = str(payload.get("sub") or "").strip()
     if not sub:
         return None
-
-    user = get_user_by_id(db, sub)
-    if user is not None:
-        return user
-
-    claim_email = str(payload.get("email") or "").strip().lower()
-    if claim_email:
-        by_email = get_user_by_email(db, claim_email)
-        if by_email is not None:
-            return by_email
-
-    # On Vercel serverless with ephemeral /tmp SQLite, a newly registered parent account
-    # created on Worker A may hit Worker B on the next request. Re-hydrate from signed JWT claims.
-    if os.getenv("VERCEL") and claim_email:
-        claim_name = str(payload.get("full_name") or "Parent Guardian").strip()
-        raw_roles = payload.get("roles")
-        role_names = (
-            [str(r) for r in raw_roles if isinstance(r, str)]
-            if isinstance(raw_roles, list) and raw_roles
-            else ["parent"]
-        )
-        now = datetime.now(timezone.utc)
-        rehydrated = User(
-            id=sub,
-            email=claim_email,
-            password_hash=hash_password(os.urandom(16).hex()),
-            full_name=claim_name,
-            is_active=True,
-            privacy_consent_accepted_at=now,
-            last_login_at=now,
-        )
-        db.add(rehydrated)
-        db.flush()
-
-        for r_name in role_names:
-            role_obj = get_role_by_name(db, r_name)
-            if not role_obj:
-                role_obj = Role(name=r_name, description=f"{r_name.capitalize()} role")
-                db.add(role_obj)
-                db.flush()
-            db.add(UserRole(user_id=rehydrated.id, role_id=role_obj.id))
-
-        if "parent" in role_names:
-            db.add(ParentProfile(user_id=rehydrated.id))
-        if "teacher" in role_names:
-            db.add(TeacherProfile(user_id=rehydrated.id, specialization="Kindergarten Education"))
-        if "admin" in role_names:
-            db.add(AdminProfile(user_id=rehydrated.id))
-
-        db.commit()
-        return get_user_by_id(db, sub)
-
-    return None
+    return get_user_by_id(db, sub)
 
 
 def register_parent(
@@ -103,6 +50,12 @@ def register_parent(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Guardian privacy consent must be accepted to create an account.",
+        )
+
+    if is_ephemeral_serverless_sqlite():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistent production database is not configured. Please connect PostgreSQL before creating accounts.",
         )
 
     normalized_email = email.lower().strip()
@@ -134,26 +87,44 @@ def register_parent(
         privacy_consent_accepted_at=now,
         last_login_at=now,
     )
-    db.add(user)
-    db.flush()
+    try:
+        db.add(user)
+        db.flush()
 
-    db.add(UserRole(user_id=user.id, role_id=parent_role.id))
-    db.add(ParentProfile(user_id=user.id))
-    record_audit(
-        db,
-        actor_user_id=user.id,
-        action="auth.parent_registered",
-        resource_type="user",
-        resource_id=user.id,
-        ip_address=ip_address,
-    )
-    db.flush()
+        db.add(UserRole(user_id=user.id, role_id=parent_role.id))
+        db.add(ParentProfile(user_id=user.id))
+        record_audit(
+            db,
+            actor_user_id=user.id,
+            action="auth.parent_registered",
+            resource_type="user",
+            resource_id=user.id,
+            ip_address=ip_address,
+        )
+        db.flush()
 
-    user = get_user_by_id(db, user.id)  # reload roles cleanly
-    assert user is not None
-    access_token, refresh_token = _issue_token_pair(db, user)
-    db.commit()
-    return user, access_token, refresh_token
+        loaded_user = get_user_by_id(db, user.id)
+        if loaded_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Account could not be saved. Please try again.",
+            )
+        access_token, refresh_token = _issue_token_pair(db, loaded_user)
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email or full name already exists.",
+        ) from exc
+
+    persisted = get_user_by_id(db, user.id)
+    if persisted is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Account could not be saved. Please try again.",
+        )
+    return persisted, access_token, refresh_token
 
 
 def authenticate_user(
@@ -271,39 +242,23 @@ def rotate_refresh_token(db: Session, raw_refresh_token: str) -> tuple[User, str
     if expires_at is not None and expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
 
-    if stored is not None:
-        if stored.revoked_at is not None or (expires_at is not None and expires_at <= now):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Refresh token has been revoked or expired.",
-            )
-        user = get_user_by_id(db, stored.user_id)
-        if not user or not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Account is inactive or missing.",
-            )
-        stored.revoked_at = now
-    elif os.getenv("VERCEL"):
-        user = ensure_user_from_token_claims(db, payload)
-        if not user or not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Account is inactive or missing.",
-            )
-        db.add(
-            RefreshToken(
-                user_id=user.id,
-                token_hash=token_digest,
-                expires_at=datetime.fromtimestamp(int(payload.get("exp", now.timestamp())), tz=timezone.utc),
-                revoked_at=now,
-            )
-        )
-    else:
+    if (
+        stored is None
+        or stored.revoked_at is not None
+        or (expires_at is not None and expires_at <= now)
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token has been revoked or expired.",
         )
+
+    user = get_user_by_id(db, stored.user_id)
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account is inactive or missing.",
+        )
+    stored.revoked_at = now
 
     access_token, new_refresh_token = _issue_token_pair(db, user)
     db.commit()
@@ -313,21 +268,25 @@ def rotate_refresh_token(db: Session, raw_refresh_token: str) -> tuple[User, str
 def revoke_refresh_token(
     db: Session, raw_refresh_token: Optional[str], actor_user_id: Optional[str]
 ) -> None:
+    resolved_user_id = actor_user_id
     if raw_refresh_token:
         digest = hash_token(raw_refresh_token)
         stmt = select(RefreshToken).where(RefreshToken.token_hash == digest)
         if actor_user_id:
             stmt = stmt.where(RefreshToken.user_id == actor_user_id)
         stored = db.scalar(stmt)
-        if stored and stored.revoked_at is None:
-            stored.revoked_at = datetime.now(timezone.utc)
-    if actor_user_id:
+        if stored:
+            if resolved_user_id is None:
+                resolved_user_id = stored.user_id
+            if stored.revoked_at is None:
+                stored.revoked_at = datetime.now(timezone.utc)
+    if resolved_user_id:
         record_audit(
             db,
-            actor_user_id=actor_user_id,
+            actor_user_id=resolved_user_id,
             action="auth.logout",
             resource_type="user",
-            resource_id=actor_user_id,
+            resource_id=resolved_user_id,
         )
     db.commit()
 

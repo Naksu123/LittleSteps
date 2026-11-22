@@ -6,6 +6,7 @@ import {
   reflectionSchema,
 } from "@/lib/validation";
 import {
+  childrenApi,
   clearStoredTokens,
   getStoredTokens,
   setStoredTokens,
@@ -102,5 +103,50 @@ describe("Parent Portal validation schemas", () => {
       accessToken: null,
       refreshToken: null,
     });
+  });
+
+  it("attaches Authorization Bearer header when calling childrenApi.create", async () => {
+    const originalFetch = global.fetch;
+    const mockFetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        id: "child-1",
+        display_name: "arthur ni",
+        birth_year: 2021,
+        age_group: "4-5",
+        avatar_key: "bunny",
+        favorite_color: "#78C8F5",
+        mascot_name: "Pip",
+        daily_goal_minutes: 20,
+        streak_days: 0,
+        total_stars: 0,
+        is_active: true,
+        created_at: new Date().toISOString(),
+      }),
+    });
+    global.fetch = mockFetch as unknown as typeof fetch;
+
+    try {
+      setStoredTokens("bearer-abc-123", "refresh-xyz-456");
+      await childrenApi.create({
+        display_name: "arthur ni",
+        birth_year: 2021,
+        age_group: "4-5",
+        avatar_key: "bunny",
+        favorite_color: "#78C8F5",
+        daily_goal_minutes: 20,
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toContain("/api/children");
+      const headers = new Headers(init.headers);
+      expect(headers.get("Authorization")).toBe("Bearer bearer-abc-123");
+      expect(headers.get("Content-Type")).toBe("application/json");
+    } finally {
+      clearStoredTokens();
+      global.fetch = originalFetch;
+    }
   });
 });

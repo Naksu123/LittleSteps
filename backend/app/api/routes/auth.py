@@ -1,8 +1,10 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_optional_current_user
 from app.core.database import get_db
 from app.models.learner import Child
 from app.models.user import User
@@ -105,11 +107,11 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
     payload: LogoutRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
-    """Revoke the provided refresh token and record logout audit event."""
-    revoke_refresh_token(db, payload.refresh_token, current_user.id)
+    """Revoke the provided refresh token and record logout audit event without altering the user account."""
+    revoke_refresh_token(db, payload.refresh_token, current_user.id if current_user else None)
     return None
 
 

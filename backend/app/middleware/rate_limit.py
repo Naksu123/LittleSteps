@@ -38,7 +38,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         }:
             return await call_next(request)
 
-        client_ip = request.client.host if request.client else "unknown"
+        forwarded_for = (request.headers.get("x-forwarded-for") or "").strip()
+        if forwarded_for:
+            client_ip = forwarded_for.split(",")[0].strip() or "unknown"
+        else:
+            real_ip = (request.headers.get("x-real-ip") or "").strip()
+            client_ip = real_ip or (request.client.host if request.client else "unknown")
         now = time.monotonic()
         window_start = now - 60.0
 

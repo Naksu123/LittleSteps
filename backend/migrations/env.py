@@ -4,15 +4,15 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 import app.models  # noqa: F401 - register all 40 ORM models on Base.metadata
-from app.core.config import settings
-from app.core.database import Base
+from app.core.database import Base, resolve_database_url
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+resolved_url = resolve_database_url(for_migrations=True).replace("%", "%%")
+config.set_main_option("sqlalchemy.url", resolved_url)
 
 target_metadata = Base.metadata
 

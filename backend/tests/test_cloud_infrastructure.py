@@ -144,7 +144,53 @@ def test_health_ready_and_request_id_headers(client: TestClient) -> None:
     r2 = client.get("/api/health/ready", headers={"X-Request-ID": "trace-cloud-123"})
     assert r2.status_code == 200
     assert r2.json()["status"] == "ready"
+    assert r2.json()["database_engine"] == "sqlite"
+    assert r2.json()["database_persistent"] is True
     assert r2.headers["X-Request-ID"] == "trace-cloud-123"
+
+
+def test_database_url_resolution_for_postgres_and_vercel_envs(monkeypatch) -> None:
+    from app.core.config import settings
+    from app.core.database import resolve_database_url
+
+    monkeypatch.setattr(
+        settings,
+        "DATABASE_URL",
+        "postgres://user:pass@host.example.com:5432/littlesteps?sslmode=require&pgbouncer=true",
+    )
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("DATABASE_URL_POOLED", raising=False)
+    assert (
+        resolve_database_url(for_migrations=False)
+        == "postgresql+psycopg://user:pass@host.example.com:5432/littlesteps?sslmode=require"
+    )
+
+    # Runtime prefers pooled URL on Vercel while migrations prefer unpooled URL
+    monkeypatch.setattr(settings, "DATABASE_URL", "sqlite:///./littlesteps_dev.db")
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("POSTGRES_URL", "postgres://u:p@fallback:5432/db")
+    monkeypatch.setenv("DATABASE_URL_POOLED", "postgresql://u:p@pooler:5432/db?sslmode=require&pgbouncer=true")
+    monkeypatch.setenv("DATABASE_URL_UNPOOLED", "postgresql://u:p@direct:5432/db?sslmode=require")
+    assert (
+        resolve_database_url(for_migrations=False)
+        == "postgresql+psycopg://u:p@pooler:5432/db?sslmode=require"
+    )
+    assert (
+        resolve_database_url(for_migrations=True)
+        == "postgresql+psycopg://u:p@direct:5432/db?sslmode=require"
+    )
+
+    # Discrete PG* fallback
+    for env_key in ("DATABASE_URL_POOLED", "POSTGRES_URL", "DATABASE_URL_UNPOOLED"):
+        monkeypatch.delenv(env_key, raising=False)
+    monkeypatch.setenv("PGHOST", "pg.internal")
+    monkeypatch.setenv("PGUSER", "ls_admin")
+    monkeypatch.setenv("PGPASSWORD", "s3cr3t@123")
+    monkeypatch.setenv("PGDATABASE", "littlesteps")
+    assert (
+        resolve_database_url(for_migrations=False)
+        == "postgresql+psycopg://ls_admin:s3cr3t%40123@pg.internal:5432/littlesteps?sslmode=require"
+    )
 
 
 def test_cloudwatch_json_formatter() -> None:

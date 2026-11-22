@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -7,7 +9,7 @@ from app.core.security import decode_token
 from app.models.learner import Child
 from app.models.user import User
 from app.repositories.learner_repo import parent_owns_child, teacher_has_child
-from app.services.auth_service import ensure_user_from_token_claims
+from app.services.auth_service import get_authenticated_user_from_claims
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -37,12 +39,31 @@ def get_current_user(
             detail="Invalid access token.",
         )
 
-    user = ensure_user_from_token_claims(db, payload)
+    user = get_authenticated_user_from_claims(db, payload)
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account is inactive or no longer exists.",
         )
+    return user
+
+
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """Return active User when a valid Bearer access token is supplied, or None otherwise."""
+    if not credentials or credentials.scheme.lower() != "bearer":
+        return None
+    try:
+        payload = decode_token(credentials.credentials)
+    except Exception:
+        return None
+    if payload.get("type") != "access" or not payload.get("sub"):
+        return None
+    user = get_authenticated_user_from_claims(db, payload)
+    if not user or not user.is_active:
+        return None
     return user
 
 

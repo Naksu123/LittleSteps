@@ -258,11 +258,9 @@ def test_weekly_report_endpoint_and_isolation(client: TestClient) -> None:
     )
 
 
-def test_parent_add_child_profile_and_serverless_session_rehydration(
+def test_parent_register_add_child_logout_and_relogin_persistence(
     client: TestClient, monkeypatch
 ) -> None:
-    from app.core.security import create_access_token
-
     # 1. Parent registers a new account and creates two child learner profiles
     reg = client.post(
         "/api/auth/register",
@@ -336,27 +334,45 @@ def test_parent_add_child_profile_and_serverless_session_rehydration(
     p2_headers = login_headers(client, "parent2@littlesteps.edu")
     assert client.get(f"/api/children/{c1_body['id']}", headers=p2_headers).status_code == 403
 
-    # 2. Simulate Vercel serverless container switch where a newly registered parent's
-    # signed JWT hits a fresh worker before that user row exists in local /tmp SQLite
-    monkeypatch.setenv("VERCEL", "1")
-    serverless_token = create_access_token(
-        subject="99999999-8888-4777-8666-555555555555",
-        roles=["parent"],
-        email="serverless.parent@example.com",
-        full_name="Serverless Guardian",
+    # 2. Log out cleanly, then sign back in with case-variant email and verify account & children persist
+    logout = client.post(
+        "/api/auth/logout",
+        headers=headers,
+        json={"refresh_token": tokens["refresh_token"]},
     )
-    sv_headers = {"Authorization": f"Bearer {serverless_token}"}
-    sv_child = client.post(
-        "/api/children",
-        headers=sv_headers,
+    assert logout.status_code == 204
+
+    relogin = client.post(
+        "/api/auth/login",
+        json={"email": "ARTHUR.PARENT@example.com", "password": "ParentPassword2026!"},
+    )
+    assert relogin.status_code == 200, relogin.text
+    relogin_headers = {"Authorization": f"Bearer {relogin.json()['access_token']}"}
+
+    me = client.get("/api/auth/me", headers=relogin_headers)
+    assert me.status_code == 200
+    assert {c["display_name"] for c in me.json()["children"]} == {"arthur ni", "Lily"}
+
+    relogin_dash = client.get("/api/parent/dashboard", headers=relogin_headers)
+    assert relogin_dash.status_code == 200
+    assert {item["child"]["display_name"] for item in relogin_dash.json()["children"]} == {
+        "arthur ni",
+        "Lily",
+    }
+
+    # 3. Never fake registration on ephemeral Vercel SQLite without PostgreSQL
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setattr(
+        "app.core.database.resolve_database_url",
+        lambda for_migrations=False: "sqlite:////tmp/littlesteps_dev.db",
+    )
+    blocked_reg = client.post(
+        "/api/auth/register",
         json={
-            "display_name": "Noel",
-            "birth_year": 2021,
-            "age_group": "4-5",
-            "avatar_key": "dino",
-            "favorite_color": "#78C8F5",
-            "daily_goal_minutes": 20,
+            "email": "ephemeral.blocked@example.com",
+            "password": "ParentPassword2026!",
+            "full_name": "Blocked Guardian",
+            "privacy_consent_accepted": True,
         },
     )
-    assert sv_child.status_code == 201, sv_child.text
-    assert sv_child.json()["display_name"] == "Noel"
+    assert blocked_reg.status_code == 503

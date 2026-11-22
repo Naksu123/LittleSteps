@@ -45,24 +45,29 @@ import type {
   WeeklyReport,
 } from "@/types";
 
-function resolveApiBase(): string {
+function getApiBase(): string {
   const configured = (process.env.NEXT_PUBLIC_API_URL || "")
     .trim()
     .replace(/\/$/, "");
-  if (configured) {
-    return configured;
-  }
-  if (
+  const isRemoteBrowser =
     typeof window !== "undefined" &&
     window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1"
-  ) {
+    window.location.hostname !== "127.0.0.1";
+
+  if (configured) {
+    if (
+      isRemoteBrowser &&
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(configured)
+    ) {
+      return "";
+    }
+    return configured;
+  }
+  if (isRemoteBrowser) {
     return "";
   }
   return "http://127.0.0.1:8000";
 }
-
-const API_BASE = resolveApiBase();
 
 const CONTENT_CACHE_TTL_MS = 60_000;
 const contentCache = new Map<string, { expiresAt: number; value: unknown }>();
@@ -213,7 +218,7 @@ async function attemptTokenRefresh(): Promise<string | null> {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+        const res = await fetch(`${getApiBase()}/api/auth/refresh`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refresh_token: refreshToken }),
@@ -237,10 +242,28 @@ async function attemptTokenRefresh(): Promise<string | null> {
   return refreshPromise;
 }
 
+async function ensureAccessToken(retryOnAuth: boolean): Promise<string | null> {
+  let { accessToken } = getStoredTokens();
+  const { refreshToken } = getStoredTokens();
+
+  if (
+    retryOnAuth &&
+    refreshToken &&
+    (!accessToken || isJwtExpiredOrExpiring(accessToken))
+  ) {
+    const refreshed = await attemptTokenRefresh();
+    if (refreshed) {
+      accessToken = refreshed;
+    }
+  }
+  return accessToken;
+}
+
 function formatFriendlyErrorMessage(
   status: number,
   rawDetail: string | undefined,
-  isPublicAuthEndpoint: boolean
+  isPublicAuthEndpoint: boolean,
+  path = ""
 ): string {
   if (isPublicAuthEndpoint && rawDetail) {
     return rawDetail;
@@ -264,8 +287,13 @@ function formatFriendlyErrorMessage(
     }
     return rawDetail;
   }
+  if (status === 503) {
+    return "The LittleSteps service is temporarily unavailable while the database is being configured. Please try again shortly.";
+  }
   if (status >= 500) {
-    return "Something went wrong while saving the profile. Please try again.";
+    return path.startsWith("/api/children")
+      ? "Something went wrong while saving the profile. Please try again."
+      : "Something went wrong on our server. Please try again.";
   }
   return rawDetail || "Something went wrong. Please try again.";
 }
@@ -281,20 +309,9 @@ async function apiRequest<T>(
     path === "/api/auth/register" ||
     path === "/api/auth/refresh";
 
-  let { accessToken } = getStoredTokens();
-  const { refreshToken } = getStoredTokens();
-
-  if (
-    !isPublicAuthEndpoint &&
-    retryOnAuth &&
-    refreshToken &&
-    (!accessToken || isJwtExpiredOrExpiring(accessToken))
-  ) {
-    const refreshed = await attemptTokenRefresh();
-    if (refreshed) {
-      accessToken = refreshed;
-    }
-  }
+  const accessToken = isPublicAuthEndpoint
+    ? null
+    : await ensureAccessToken(retryOnAuth);
 
   const headers = new Headers(options.headers || {});
   if (!headers.has("Content-Type") && options.body) {
@@ -304,7 +321,7 @@ async function apiRequest<T>(
     headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${getApiBase()}${path}`, {
     ...options,
     headers,
   });
@@ -328,7 +345,8 @@ async function apiRequest<T>(
     const detail = formatFriendlyErrorMessage(
       response.status,
       rawDetail,
-      isPublicAuthEndpoint
+      isPublicAuthEndpoint,
+      path
     );
     throw new ApiError(detail, response.status);
   }
@@ -340,19 +358,20 @@ export async function apiFetchBlob(
   path: string,
   retryOnAuth = true
 ): Promise<string> {
-  const { accessToken } = getStoredTokens();
+  const accessToken = await ensureAccessToken(retryOnAuth);
   const headers = new Headers();
   if (accessToken) {
     headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
-  const response = await fetch(`${API_BASE}${path}`, { headers });
+  const response = await fetch(`${getApiBase()}${path}`, { headers });
 
   if (response.status === 401 && retryOnAuth) {
     const newAccess = await attemptTokenRefresh();
     if (newAccess) {
       return apiFetchBlob(path, false);
     }
+    notifyAuthExpired();
   }
 
   if (!response.ok) {
@@ -368,13 +387,13 @@ async function apiUpload<T>(
   formData: FormData,
   retryOnAuth = true
 ): Promise<T> {
-  const { accessToken } = getStoredTokens();
+  const accessToken = await ensureAccessToken(retryOnAuth);
   const headers = new Headers();
   if (accessToken) {
     headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${getApiBase()}${path}`, {
     method: "POST",
     headers,
     body: formData,
@@ -385,6 +404,7 @@ async function apiUpload<T>(
     if (newAccess) {
       return apiUpload<T>(path, formData, false);
     }
+    notifyAuthExpired();
   }
 
   const data = await response.json().catch(() => ({}));
@@ -424,10 +444,14 @@ export const authApi = {
       body: JSON.stringify(payload),
     }),
   logout: (refreshToken: string | null) =>
-    apiRequest<void>("/api/auth/logout", {
-      method: "POST",
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    }),
+    apiRequest<void>(
+      "/api/auth/logout",
+      {
+        method: "POST",
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      },
+      false
+    ),
   me: () => apiRequest<MeResponse>("/api/auth/me"),
 };
 

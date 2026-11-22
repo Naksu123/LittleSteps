@@ -22,6 +22,11 @@ Parameters:
     Type: String
     MinLength: 32
     NoEcho: true
+  StaffAccessCode:
+    Type: String
+    MinLength: 12
+    NoEcho: true
+    Default: "ChangeThisStaffGateCode2026!"
   DBInstanceClass:
     Type: String
     Default: db.t4g.micro
@@ -193,7 +198,8 @@ Resources:
           "JWT_SECRET_KEY": "${JWTSecretKey}",
           "DATABASE_URL": "postgresql+psycopg://${DBUsername}:${DBPassword}@${LittleStepsDB.Endpoint.Address}:${LittleStepsDB.Endpoint.Port}/littlesteps",
           "S3_BUCKET_NAME": "${MediaBucket}",
-          "CORS_ORIGINS": "${FrontendOrigin}"
+          "CORS_ORIGINS": "${FrontendOrigin}",
+          "STAFF_ACCESS_CODE": "${StaffAccessCode}"
         }
 
   AppRunnerECRAccessRole:

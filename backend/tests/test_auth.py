@@ -171,3 +171,35 @@ def test_staff_login_requires_access_code_and_staff_role(client: TestClient) -> 
     )
     assert logs.status_code == 200
     assert len(logs.json()) >= 2
+
+
+def test_logout_without_bearer_revokes_refresh_and_preserves_account(client: TestClient) -> None:
+    from app.core.security import verify_password
+
+    reg = client.post(
+        "/api/auth/register",
+        json={
+            "email": "LogoutParent@example.com",
+            "password": "StrongPassword123!",
+            "full_name": "Logout Parent",
+            "privacy_consent_accepted": True,
+        },
+    )
+    assert reg.status_code == 201
+    refresh_token = reg.json()["refresh_token"]
+
+    # Logout with expired/missing Authorization header still revokes refresh token cleanly
+    logout = client.post("/api/auth/logout", json={"refresh_token": refresh_token})
+    assert logout.status_code == 204
+
+    after_logout = client.post("/api/auth/refresh", json={"refresh_token": refresh_token})
+    assert after_logout.status_code == 401
+
+    # Registered account remains intact and accepts case-insensitive email login
+    login = client.post(
+        "/api/auth/login",
+        json={"email": "logoutparent@example.com", "password": "StrongPassword123!"},
+    )
+    assert login.status_code == 200
+
+    assert verify_password("any", "corrupted-hash") is False

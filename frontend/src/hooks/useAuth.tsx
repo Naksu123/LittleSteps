@@ -8,13 +8,14 @@ import React, {
   useState,
 } from "react";
 import {
+  ApiError,
   authApi,
   clearStoredTokens,
   getStoredTokens,
   onAuthExpired,
   setStoredTokens,
 } from "@/services/api";
-import type { Child, UserSummary } from "@/types";
+import type { Child, MeResponse, UserSummary } from "@/types";
 
 interface AuthContextValue {
   user: UserSummary | null;
@@ -60,17 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const refreshUser = useCallback(async () => {
-    const { accessToken, refreshToken } = getStoredTokens();
-    if (!accessToken && !refreshToken) {
-      setUser(null);
-      setChildrenList([]);
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const me = await authApi.me();
+  const hydrateSessionChildren = useCallback(
+    (me: MeResponse) => {
       setUser(me.user);
       setChildrenList(me.children);
 
@@ -86,15 +78,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setActiveChildId(null);
       }
-    } catch {
-      clearStoredTokens();
+    },
+    [setActiveChildId]
+  );
+
+  const refreshUser = useCallback(async () => {
+    const { accessToken, refreshToken } = getStoredTokens();
+    if (!accessToken && !refreshToken) {
       setUser(null);
       setChildrenList([]);
-      setActiveChildId(null);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const me = await authApi.me();
+      hydrateSessionChildren(me);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        clearStoredTokens();
+        setUser(null);
+        setChildrenList([]);
+        setActiveChildId(null);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [setActiveChildId]);
+  }, [hydrateSessionChildren, setActiveChildId]);
 
   useEffect(() => {
     void refreshUser();
@@ -107,14 +117,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const establishAuthenticatedSession = useCallback(
+    async (res: {
+      access_token: string;
+      refresh_token: string;
+      user: UserSummary;
+    }): Promise<UserSummary> => {
+      setStoredTokens(res.access_token, res.refresh_token);
+      setUser(res.user);
+      try {
+        const me = await authApi.me();
+        hydrateSessionChildren(me);
+        return me.user;
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          clearStoredTokens();
+          setUser(null);
+          setChildrenList([]);
+          setActiveChildId(null);
+          throw err;
+        }
+        return res.user;
+      }
+    },
+    [hydrateSessionChildren, setActiveChildId]
+  );
+
   const login = useCallback(
     async (email: string, password: string): Promise<UserSummary> => {
       const res = await authApi.login({ email, password });
-      setStoredTokens(res.access_token, res.refresh_token);
-      await refreshUser();
-      return res.user;
+      return establishAuthenticatedSession(res);
     },
-    [refreshUser]
+    [establishAuthenticatedSession]
   );
 
   const staffLogin = useCallback(
@@ -128,11 +162,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
         access_code: accessCode,
       });
-      setStoredTokens(res.access_token, res.refresh_token);
-      await refreshUser();
-      return res.user;
+      return establishAuthenticatedSession(res);
     },
-    [refreshUser]
+    [establishAuthenticatedSession]
   );
 
   const register = useCallback(
@@ -143,11 +175,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       privacy_consent_accepted: boolean;
     }): Promise<UserSummary> => {
       const res = await authApi.register(payload);
-      setStoredTokens(res.access_token, res.refresh_token);
-      await refreshUser();
-      return res.user;
+      return establishAuthenticatedSession(res);
     },
-    [refreshUser]
+    [establishAuthenticatedSession]
   );
 
   const logout = useCallback(async () => {

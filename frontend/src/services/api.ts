@@ -45,8 +45,24 @@ import type {
   WeeklyReport,
 } from "@/types";
 
-const API_BASE =
-  (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+function resolveApiBase(): string {
+  const configured = (process.env.NEXT_PUBLIC_API_URL || "")
+    .trim()
+    .replace(/\/$/, "");
+  if (configured) {
+    return configured;
+  }
+  if (
+    typeof window !== "undefined" &&
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1"
+  ) {
+    return "";
+  }
+  return "http://127.0.0.1:8000";
+}
+
+const API_BASE = resolveApiBase();
 
 const CONTENT_CACHE_TTL_MS = 60_000;
 const contentCache = new Map<string, { expiresAt: number; value: unknown }>();

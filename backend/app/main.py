@@ -1,12 +1,28 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import app.models  # noqa: F401
 from app.api.routes import admin, artworks, auth, children, content, health, parent, progress, teacher
 from app.core.config import settings, validate_production_config
+from app.core.database import Base, SessionLocal, engine
 from app.core.logging_config import configure_logging
+from app.db.seed import seed_database
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.request_logging import RequestLoggingMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
+
+
+def _ensure_serverless_db_ready() -> None:
+    """Auto-create tables and seed data on Vercel serverless cold start or when SEED_ON_START=true."""
+    if settings.APP_ENV.lower() == "test":
+        return
+    if not (settings.SEED_ON_START or os.getenv("VERCEL")):
+        return
+    Base.metadata.create_all(bind=engine)
+    with SessionLocal() as session:
+        seed_database(session)
 
 
 def create_app() -> FastAPI:
@@ -18,6 +34,8 @@ def create_app() -> FastAPI:
         raise RuntimeError(
             "Production configuration validation failed: " + "; ".join(prod_errors)
         )
+
+    _ensure_serverless_db_ready()
 
     is_production = settings.APP_ENV.lower() == "production"
     application = FastAPI(
@@ -32,6 +50,7 @@ def create_app() -> FastAPI:
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
+        allow_origin_regex=r"https://.*\.vercel\.app",
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],

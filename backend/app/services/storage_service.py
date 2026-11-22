@@ -42,6 +42,12 @@ class StorageService:
             )
         return ALLOWED_MIME_TYPES[content_type]
 
+    def _local_upload_root(self) -> Path:
+        raw_dir = settings.LOCAL_UPLOAD_DIR
+        if os.getenv("VERCEL") and raw_dir in {"./uploads", "uploads"}:
+            raw_dir = "/tmp/uploads"
+        return Path(raw_dir).resolve()
+
     def save_bytes(self, prefix: str, content: bytes, content_type: str) -> str:
         ext = self.validate_file(content_type, len(content))
         key = f"{prefix.strip('/')}/{uuid.uuid4().hex}{ext}"
@@ -58,7 +64,7 @@ class StorageService:
             )
             return key
 
-        upload_root = Path(settings.LOCAL_UPLOAD_DIR).resolve()
+        upload_root = self._local_upload_root()
         target = (upload_root / key).resolve()
         if not str(target).startswith(str(upload_root)):
             raise StorageValidationError("Invalid storage key path.")
@@ -111,7 +117,7 @@ class StorageService:
         return f"/api/media/local/{key}"
 
     def _resolve_local_path(self, key: str) -> Path:
-        upload_root = Path(settings.LOCAL_UPLOAD_DIR).resolve()
+        upload_root = self._local_upload_root()
         target = (upload_root / key).resolve()
         if not str(target).startswith(str(upload_root)):
             raise StorageValidationError("Invalid storage key path.")
@@ -154,7 +160,7 @@ class StorageService:
                 return {"backend": "s3", "status": "error"}
 
         try:
-            os.makedirs(settings.LOCAL_UPLOAD_DIR, exist_ok=True)
+            os.makedirs(self._local_upload_root(), exist_ok=True)
             return {"backend": "local", "status": "ready"}
         except OSError:
             return {"backend": "local", "status": "error"}

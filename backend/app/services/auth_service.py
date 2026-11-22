@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -42,6 +42,13 @@ def register_parent(
             detail="An account with this email already exists.",
         )
 
+    clean_full_name = " ".join(full_name.strip().split())
+    if db.scalar(select(User.id).where(func.lower(User.full_name) == clean_full_name.lower())):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this full name already exists.",
+        )
+
     parent_role = get_role_by_name(db, "parent")
     if not parent_role:
         parent_role = Role(name="parent", description="Parent or guardian")
@@ -52,7 +59,7 @@ def register_parent(
     user = User(
         email=normalized_email,
         password_hash=hash_password(password),
-        full_name=full_name.strip(),
+        full_name=clean_full_name,
         is_active=True,
         privacy_consent_accepted_at=now,
         last_login_at=now,

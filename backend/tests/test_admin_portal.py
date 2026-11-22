@@ -48,6 +48,19 @@ def test_admin_user_lifecycle_and_self_protection(client: TestClient) -> None:
     )
     assert dup_resp.status_code == 409
 
+    # Duplicate full name returns 409 (case-insensitive)
+    dup_name_resp = client.post(
+        "/api/admin/users",
+        headers=admin_headers,
+        json={
+            "email": "different.email@littlesteps.edu",
+            "full_name": "teacher ben flores",
+            "password": "Kindergarten2026!",
+            "role": "teacher",
+        },
+    )
+    assert dup_name_resp.status_code == 409
+
     # Filter users by role and active status
     teachers_resp = client.get("/api/admin/users?role=teacher&is_active=true", headers=admin_headers)
     assert teachers_resp.status_code == 200

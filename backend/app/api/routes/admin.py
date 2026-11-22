@@ -256,6 +256,13 @@ def create_user(
             detail="An account with this email already exists.",
         )
 
+    clean_full_name = " ".join(payload.full_name.strip().split())
+    if db.scalar(select(User.id).where(func.lower(User.full_name) == clean_full_name.lower())):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this full name already exists.",
+        )
+
     role_obj = db.scalar(select(Role).where(Role.name == payload.role))
     if not role_obj:
         raise HTTPException(
@@ -266,7 +273,7 @@ def create_user(
     user = User(
         email=normalized_email,
         password_hash=hash_password(payload.password),
-        full_name=payload.full_name.strip(),
+        full_name=clean_full_name,
         is_active=payload.is_active,
         privacy_consent_accepted_at=datetime.now(timezone.utc),
     )
@@ -345,7 +352,19 @@ def update_user(
             for tok in active_tokens:
                 tok.revoked_at = revoked_at
     if payload.full_name is not None:
-        user.full_name = payload.full_name.strip()
+        clean_full_name = " ".join(payload.full_name.strip().split())
+        dup_name = db.scalar(
+            select(User.id).where(
+                func.lower(User.full_name) == clean_full_name.lower(),
+                User.id != user_id,
+            )
+        )
+        if dup_name:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Another account with this full name already exists.",
+            )
+        user.full_name = clean_full_name
 
     updated_roles: Optional[list[str]] = None
     if payload.roles is not None:
@@ -787,7 +806,12 @@ def create_subject(
     db: Session = Depends(get_db),
 ):
     """Create a curriculum learning module subject."""
-    clean_name = payload.name.strip()
+    clean_name = " ".join(payload.name.strip().split())
+    if db.scalar(select(Subject.id).where(func.lower(Subject.name) == clean_name.lower())):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A subject with this name already exists.",
+        )
     subject = Subject(
         slug=_slugify_subject(db, clean_name),
         name=clean_name,
@@ -828,7 +852,19 @@ def update_subject(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subject not found.")
 
     if payload.name is not None:
-        subject.name = payload.name.strip()
+        clean_name = " ".join(payload.name.strip().split())
+        dup_subj = db.scalar(
+            select(Subject.id).where(
+                func.lower(Subject.name) == clean_name.lower(),
+                Subject.id != subject_id,
+            )
+        )
+        if dup_subj:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Another subject with this name already exists.",
+            )
+        subject.name = clean_name
     if payload.description is not None:
         subject.description = payload.description.strip()
     if payload.icon_key is not None:

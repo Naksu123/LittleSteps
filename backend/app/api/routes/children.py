@@ -55,8 +55,15 @@ def create_child(
     db: Session = Depends(get_db),
 ):
     """Create a child-safe learner profile linked to the creating parent/guardian."""
+    clean_display_name = " ".join(payload.display_name.strip().split())
+    if db.scalar(select(Child.id).where(func.lower(Child.display_name) == clean_display_name.lower())):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A learner profile with this name already exists.",
+        )
+
     child = Child(
-        display_name=payload.display_name.strip(),
+        display_name=clean_display_name,
         birth_year=payload.birth_year,
         age_group=payload.age_group,
         avatar_key=payload.avatar_key,
@@ -123,6 +130,21 @@ def update_child(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Child not found.")
 
     update_data = payload.model_dump(exclude_unset=True)
+    if "display_name" in update_data and update_data["display_name"] is not None:
+        clean_display_name = " ".join(str(update_data["display_name"]).strip().split())
+        dup_child = db.scalar(
+            select(Child.id).where(
+                func.lower(Child.display_name) == clean_display_name.lower(),
+                Child.id != child_id,
+            )
+        )
+        if dup_child:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Another learner profile with this name already exists.",
+            )
+        update_data["display_name"] = clean_display_name
+
     for field, value in update_data.items():
         setattr(child, field, value.strip() if isinstance(value, str) else value)
 

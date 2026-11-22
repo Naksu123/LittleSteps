@@ -38,11 +38,23 @@ def test_parent_registration_login_refresh_and_logout(client: TestClient) -> Non
         json={
             "email": "newparent@example.com",
             "password": "StrongPassword123!",
-            "full_name": "Ana Villanueva",
+            "full_name": "Another Name",
             "privacy_consent_accepted": True,
         },
     )
     assert dup.status_code == 409
+
+    # Duplicate full name rejected (case-insensitive)
+    dup_name = client.post(
+        "/api/auth/register",
+        json={
+            "email": "unique-email@example.com",
+            "password": "StrongPassword123!",
+            "full_name": "ana villanueva",
+            "privacy_consent_accepted": True,
+        },
+    )
+    assert dup_name.status_code == 409
 
     # Login
     login = client.post(

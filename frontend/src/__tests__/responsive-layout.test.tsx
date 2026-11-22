@@ -1,4 +1,7 @@
+import fs from "fs";
+import path from "path";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { KidsNav } from "@/components/layout/KidsNav";
 import { Dialog } from "@/components/ui/dialog";
@@ -112,5 +115,22 @@ describe("Responsive layout, adaptive navigation, and viewport-safe dialogs", ()
     expect(formatCompactSubjectLabel("Very Long Custom Subject Name")).toBe(
       "Very Long …"
     );
+  });
+
+  it("keeps BrandLogo bounded across viewports without unlayered globals.css media overrides", () => {
+    render(<BrandLogo size="sm" />);
+    const logoImg = screen.getByRole("img", {
+      name: "LittleSteps — Small Steps, Big Discoveries.",
+    });
+    expect(logoImg).toHaveClass("h-9", "sm:h-11", "w-auto", "max-w-full", "object-contain");
+    expect(logoImg.parentElement).toHaveClass("overflow-hidden");
+
+    const globalsCss = fs.readFileSync(
+      path.resolve(process.cwd(), "src/app/globals.css"),
+      "utf8"
+    );
+    expect(globalsCss).not.toMatch(/^\s*(?:img|video)\s*[,{]/m);
+    expect(globalsCss).toContain("@layer base");
+    expect(globalsCss).toContain("@layer components");
   });
 });

@@ -154,14 +154,15 @@ async function attemptTokenRefresh(): Promise<string | null> {
           body: JSON.stringify({ refresh_token: refreshToken }),
         });
         if (!res.ok) {
-          clearStoredTokens();
+          if (res.status === 401 || res.status === 403) {
+            clearStoredTokens();
+          }
           return null;
         }
         const data = (await res.json()) as TokenResponse;
         setStoredTokens(data.access_token, data.refresh_token);
         return data.access_token;
       } catch {
-        clearStoredTokens();
         return null;
       } finally {
         refreshPromise = null;

@@ -1,5 +1,6 @@
 import copy
 import sys
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
@@ -49,10 +50,15 @@ from app.models import (
 )
 
 
+def _seed_id(kind: str, key: str) -> str:
+    """Generate a deterministic UUIDv5 so serverless instances share identical seeded IDs."""
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"littlesteps.edu:{kind}:{key}"))
+
+
 def _get_or_create_role(db: Session, name: str, description: str) -> Role:
     role = db.scalar(select(Role).where(Role.name == name))
     if not role:
-        role = Role(name=name, description=description)
+        role = Role(id=_seed_id("role", name), name=name, description=description)
         db.add(role)
         db.flush()
     return role
@@ -69,6 +75,7 @@ def _get_or_create_user(
     user = db.scalar(select(User).where(User.email == email))
     if not user:
         user = User(
+            id=_seed_id("user", email.lower().strip()),
             email=email,
             password_hash=password_hash,
             full_name=full_name,
@@ -111,6 +118,7 @@ def _get_or_create_child(
     )
     if not child:
         child = Child(
+            id=_seed_id("child", f"{parent.email}:{display_name.lower()}"),
             display_name=display_name,
             birth_year=birth_year,
             age_group=age_group,
@@ -211,6 +219,7 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
     sunshine = db.scalar(select(SchoolClass).where(SchoolClass.name == "Sunshine Kinders (Ages 4-5)"))
     if not sunshine:
         sunshine = SchoolClass(
+            id=_seed_id("class", "sunshine-kinders"),
             name="Sunshine Kinders (Ages 4-5)",
             age_group="4-5",
             academic_year="2026-2027",
@@ -222,6 +231,7 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
     rainbow = db.scalar(select(SchoolClass).where(SchoolClass.name == "Rainbow Explorers (Ages 5-6)"))
     if not rainbow:
         rainbow = SchoolClass(
+            id=_seed_id("class", "rainbow-explorers"),
             name="Rainbow Explorers (Ages 5-6)",
             age_group="5-6",
             academic_year="2026-2027",
@@ -261,7 +271,13 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
         subj = db.scalar(select(Subject).where(Subject.slug == slug))
         if not subj:
             subj = Subject(
-                slug=slug, name=name, description=desc, icon_key=icon, color_hex=color, sort_order=order
+                id=_seed_id("subject", slug),
+                slug=slug,
+                name=name,
+                description=desc,
+                icon_key=icon,
+                color_hex=color,
+                sort_order=order,
             )
             db.add(subj)
             db.flush()
@@ -436,6 +452,7 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
         theme = db.scalar(select(Theme).where(Theme.week_number == week))
         if not theme:
             theme = Theme(
+                id=_seed_id("theme", slug),
                 week_number=week,
                 slug=slug,
                 title=title,
@@ -453,6 +470,7 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
             for idx, stmt in enumerate(objectives, start=1):
                 db.add(
                     LearningObjective(
+                        id=_seed_id("objective", f"{slug}:{idx}"),
                         theme_id=theme.id,
                         subject_id=subject_map[_subj_slug].id,
                         statement=stmt,
@@ -463,6 +481,7 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
         if not db.scalar(select(ParentGuide).where(ParentGuide.theme_id == theme.id)):
             db.add(
                 ParentGuide(
+                    id=_seed_id("parent_guide", slug),
                     theme_id=theme.id,
                     what_child_learns=guide_cfg["what"],
                     why_it_matters=guide_cfg["why"],
@@ -477,6 +496,7 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
         if not db.scalar(select(HomeActivity).where(HomeActivity.theme_id == theme.id)):
             for idx, (act_title, steps, mats, mins) in enumerate(guide_cfg["activities"], start=1):
                 ha = HomeActivity(
+                    id=_seed_id("home_activity", f"{slug}:{idx}"),
                     theme_id=theme.id,
                     title=act_title,
                     instructions_json=steps,
@@ -521,6 +541,7 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
         lesson = db.scalar(select(Lesson).where(Lesson.slug == slug))
         if not lesson:
             lesson = Lesson(
+                id=_seed_id("lesson", slug),
                 subject_id=subject_map[subj_slug].id,
                 theme_id=theme_map[week_num].id,
                 slug=slug,
@@ -548,6 +569,7 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
         if not activity:
             db.add(
                 Activity(
+                    id=_seed_id("activity", f"{slug}:1"),
                     lesson_id=lesson.id,
                     title=f"{title} Practice",
                     activity_type="choice",
@@ -588,6 +610,7 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
         if not game:
             db.add(
                 Game(
+                    id=_seed_id("game", slug),
                     slug=slug,
                     title=title,
                     game_type=gtype,
@@ -607,6 +630,7 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
     quiz = db.scalar(select(Quiz).where(Quiz.title == "Week 1 Colors Mini Check-In"))
     if not quiz:
         quiz = Quiz(
+            id=_seed_id("quiz", "week-1-colors-mini-check-in"),
             lesson_id=lesson_map["primary-colors-studio"].id,
             theme_id=theme_map[1].id,
             title="Week 1 Colors Mini Check-In",

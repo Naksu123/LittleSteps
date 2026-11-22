@@ -1,7 +1,9 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.seed import seed_database
+from app.db.seed import _seed_id, seed_database
+from app.models.user import User
 from tests.conftest import login_headers
 
 
@@ -13,6 +15,10 @@ def test_seed_is_idempotent(db_session: Session) -> None:
     assert first["themes"] == 12
     assert first["games"] == 16
     assert first["lessons"] == 6
+
+    admin = db_session.scalar(select(User).where(User.email == "admin@littlesteps.edu"))
+    assert admin is not None
+    assert admin.id == _seed_id("user", "admin@littlesteps.edu")
 
 
 def test_learning_content_and_parent_dashboard(client: TestClient) -> None:

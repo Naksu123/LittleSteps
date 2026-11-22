@@ -1,4 +1,5 @@
 import hmac
+import os
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -193,18 +194,40 @@ def rotate_refresh_token(db: Session, raw_refresh_token: str) -> tuple[User, str
     if expires_at is not None and expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
 
-    if not stored or stored.revoked_at is not None or (expires_at is not None and expires_at <= now):
+    if stored is not None:
+        if stored.revoked_at is not None or (expires_at is not None and expires_at <= now):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token has been revoked or expired.",
+            )
+        user = get_user_by_id(db, stored.user_id)
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account is inactive or missing.",
+            )
+        stored.revoked_at = now
+    elif os.getenv("VERCEL"):
+        user = get_user_by_id(db, str(payload["sub"]))
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account is inactive or missing.",
+            )
+        db.add(
+            RefreshToken(
+                user_id=user.id,
+                token_hash=token_digest,
+                expires_at=datetime.fromtimestamp(int(payload.get("exp", now.timestamp())), tz=timezone.utc),
+                revoked_at=now,
+            )
+        )
+    else:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token has been revoked or expired."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token has been revoked or expired.",
         )
 
-    user = get_user_by_id(db, stored.user_id)
-    if not user or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is inactive or missing."
-        )
-
-    stored.revoked_at = now
     access_token, new_refresh_token = _issue_token_pair(db, user)
     db.commit()
     return user, access_token, new_refresh_token

@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { Award, RotateCcw, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,11 +26,11 @@ export function RewardCelebration({
   onBack,
   backLabel = "Back",
 }: RewardCelebrationProps) {
-  return (
+  const content = (
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#24334D]/55 p-3 sm:p-4 backdrop-blur-xs overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#24334D]/55 p-3 sm:p-4 backdrop-blur-xs overflow-y-auto"
     >
       <motion.div
         initial={{ scale: 0.82, opacity: 0 }}
@@ -109,4 +110,8 @@ export function RewardCelebration({
       </motion.div>
     </div>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(content, document.body)
+    : content;
 }

@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { stopBackgroundMusic } from "@/lib/sound";
 import { Mascot } from "@/components/brand/Mascot";
+import { KidsHeader } from "@/components/kids/KidsHeader";
 import { KidsNav } from "@/components/layout/KidsNav";
 import { Button } from "@/components/ui/button";
 
@@ -40,12 +42,14 @@ describe("LittleSteps UI Components", () => {
     ).toBeInTheDocument();
   });
 
-  it("opens dynamic Grown-Up Gate math check before exiting Kids Mode", () => {
+  it("opens dynamic Grown-Up Gate math check in a body portal outside the header", () => {
     pushMock.mockClear();
     const onSelectTab = jest.fn();
     render(<KidsNav activeTab="home" onSelectTab={onSelectTab} exitHref="/parent" />);
 
     fireEvent.click(screen.getByRole("button", { name: "Grown-Up Exit" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.parentElement).toBe(document.body);
     const firstPrompt = screen.getByTestId("grownup-prompt").textContent || "";
     const firstAnswer = solvePrompt(firstPrompt);
 
@@ -65,5 +69,32 @@ describe("LittleSteps UI Components", () => {
     fireEvent.click(screen.getByRole("button", { name: "Unlock Portal" }));
 
     expect(pushMock).toHaveBeenCalledWith("/parent");
+  });
+
+  it("toggles background music and switches to next random preschool song in KidsHeader", () => {
+    window.localStorage.clear();
+    const { unmount } = render(
+      <KidsHeader child={null} backHref="/kids" backLabel="Back" />
+    );
+
+    const nextBtn = screen.getByRole("button", { name: "Play next random song" });
+    fireEvent.click(nextBtn);
+    const titleEl = screen.getByTestId("current-bgm-title");
+    const firstTitle = titleEl.textContent || "";
+    expect(firstTitle.length).toBeGreaterThan(2);
+
+    fireEvent.click(nextBtn);
+    const secondTitle = screen.getByTestId("current-bgm-title").textContent || "";
+    expect(secondTitle).not.toBe(firstTitle);
+
+    fireEvent.click(screen.getByRole("button", { name: "Turn background music off" }));
+    expect(screen.queryByRole("button", { name: "Play next random song" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Turn background music on" }));
+    expect(screen.getByRole("button", { name: "Play next random song" })).toBeInTheDocument();
+
+    unmount();
+    stopBackgroundMusic();
+    window.localStorage.clear();
   });
 });

@@ -39,7 +39,7 @@ export function KidsNav({
   exitHref = "/parent",
 }: KidsNavProps) {
   return (
-    <header className="w-full rounded-3xl bg-white md:bg-white/95 md:backdrop-blur-sm px-3 sm:px-4 py-2.5 sm:py-3 shadow-md border-2 border-[#78C8F5]/30">
+    <header className="w-full rounded-3xl bg-white px-3 sm:px-4 py-2.5 sm:py-3 shadow-md border-2 border-[#78C8F5]/30">
       <div className="flex items-center justify-between gap-2 sm:gap-3">
         <Link href="/kids" className="flex items-center shrink-0">
           <BrandLogo size="xs" />

@@ -2,16 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Flame, Music, Star, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Flame, Star, Volume2, VolumeX } from "lucide-react";
 import {
-  getMusicEnabled,
   getSoundEnabled,
   getSoundVolume,
   onAudioSettingsChange,
-  setMusicEnabled,
   setSoundEnabled,
   setSoundVolume,
 } from "@/lib/sound";
+import { KidsMusicControl } from "@/components/kids/KidsMusicControl";
 import { GrownUpGate } from "@/components/layout/GrownUpGate";
 import { ChildAvatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -33,13 +32,11 @@ export function KidsHeader({
 }: KidsHeaderProps) {
   const [soundOn, setSoundOn] = useState(true);
   const [volumePct, setVolumePct] = useState(85);
-  const [musicOn, setMusicOn] = useState(false);
 
   useEffect(() => {
     const sync = () => {
       setSoundOn(getSoundEnabled());
       setVolumePct(Math.round(getSoundVolume() * 100));
-      setMusicOn(getMusicEnabled());
     };
     sync();
     return onAudioSettingsChange(sync);
@@ -59,12 +56,6 @@ export function KidsHeader({
       setSoundOn(true);
       setSoundEnabled(true);
     }
-  }
-
-  function toggleMusic() {
-    const next = !musicOn;
-    setMusicOn(next);
-    setMusicEnabled(next);
   }
 
   return (
@@ -141,25 +132,7 @@ export function KidsHeader({
           />
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          size="md"
-          onClick={toggleMusic}
-          aria-label={
-            musicOn ? "Turn background music off" : "Turn background music on"
-          }
-          className="rounded-2xl min-h-11 sm:min-h-12 px-3 sm:px-4"
-        >
-          <Music
-            className={
-              musicOn ? "h-4 w-4 text-[#166041]" : "h-4 w-4 text-[#24334D]/45"
-            }
-          />
-          <span className="text-xs font-bold">
-            {musicOn ? "Music On" : "Music Off"}
-          </span>
-        </Button>
+        <KidsMusicControl compact />
       </div>
     </header>
   );

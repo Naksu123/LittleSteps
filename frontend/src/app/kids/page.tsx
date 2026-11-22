@@ -24,6 +24,7 @@ import { contentApi, progressApi } from "@/services/api";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Mascot } from "@/components/brand/Mascot";
 import { JourneyMap } from "@/components/kids/JourneyMap";
+import { KidsMusicControl } from "@/components/kids/KidsMusicControl";
 import { KidsNav, type KidsTabKey } from "@/components/layout/KidsNav";
 import { Alert } from "@/components/ui/alert";
 import { ChildAvatar } from "@/components/ui/avatar";
@@ -311,6 +312,7 @@ function KidsPortalContent() {
                     <Volume2 className="h-4 w-4" />
                     Hear Instructions
                   </Button>
+                  <KidsMusicControl />
                 </div>
               </div>
             </div>

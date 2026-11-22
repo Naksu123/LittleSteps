@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,9 +51,9 @@ export function Dialog({
 
   if (!open) return null;
 
-  return (
+  const dialogNode = (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#24334D]/50 p-2.5 sm:p-4 backdrop-blur-xs overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#24334D]/55 p-4 backdrop-blur-xs overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -62,7 +63,7 @@ export function Dialog({
     >
       <div
         className={cn(
-          "relative w-full max-h-[calc(100dvh-1.25rem)] sm:max-h-[90dvh] flex flex-col rounded-3xl bg-white shadow-2xl border-2 border-[#24334D]/10 overflow-hidden",
+          "relative w-full max-h-[calc(100dvh-2rem)] sm:max-h-[90dvh] flex flex-col rounded-3xl bg-white shadow-2xl border-2 border-[#24334D]/10 overflow-hidden",
           SIZE_CLASSES[size]
         )}
       >
@@ -95,4 +96,8 @@ export function Dialog({
       </div>
     </div>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(dialogNode, document.body)
+    : dialogNode;
 }

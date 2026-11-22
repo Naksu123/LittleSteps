@@ -9,14 +9,26 @@ import {
   stopAnimalSound,
 } from "@/lib/animalSounds";
 import {
+  NOTE_FREQUENCIES,
+  PRESCHOOL_SONGS,
+  createShuffledSongQueue,
+} from "@/lib/preschoolMusic";
+import {
   formatKindergartenSpeech,
   selectPreferredFemaleVoice,
 } from "@/lib/speech";
 import {
+  getCurrentBackgroundSong,
+  getMusicEnabled,
   getSoundEnabled,
   getSoundVolume,
+  isBackgroundMusicPlaying,
+  setMusicEnabled,
   setSoundEnabled,
   setSoundVolume,
+  skipToNextRandomSong,
+  startBackgroundMusic,
+  stopBackgroundMusic,
 } from "@/lib/sound";
 
 function makeVoice(
@@ -150,5 +162,115 @@ describe("Animal sound effects catalog & playback", () => {
     expect(getSoundEnabled()).toBe(false);
     expect(playAnimalSound("dog")).toBe(false);
     setSoundEnabled(true);
+  });
+});
+
+function installMockAudioContext() {
+  class MockAudioContext {
+    state = "running";
+    currentTime = 0;
+    destination = {};
+    resume = jest.fn().mockResolvedValue(undefined);
+    createGain = () => ({
+      gain: {
+        value: 0,
+        setValueAtTime: jest.fn(),
+        linearRampToValueAtTime: jest.fn(),
+        exponentialRampToValueAtTime: jest.fn(),
+        setTargetAtTime: jest.fn(),
+      },
+      connect: jest.fn(),
+    });
+    createBiquadFilter = () => ({
+      type: "lowpass",
+      frequency: { value: 0 },
+      Q: { value: 0 },
+      connect: jest.fn(),
+    });
+    createOscillator = () => ({
+      type: "sine",
+      frequency: { setValueAtTime: jest.fn() },
+      connect: jest.fn(),
+      start: jest.fn(),
+      stop: jest.fn(),
+    });
+  }
+
+  Object.defineProperty(window, "AudioContext", {
+    configurable: true,
+    writable: true,
+    value: MockAudioContext,
+  });
+}
+
+describe("Preschool random background music playlist & controls", () => {
+  beforeEach(() => {
+    stopBackgroundMusic();
+    window.localStorage.clear();
+    setSoundEnabled(true);
+    setSoundVolume(0.85);
+    installMockAudioContext();
+  });
+
+  afterEach(() => {
+    stopBackgroundMusic();
+    window.localStorage.clear();
+    setSoundEnabled(true);
+  });
+
+  it("includes Twinkle Twinkle Little Star and valid notes across all 8 preschool songs", () => {
+    expect(PRESCHOOL_SONGS).toHaveLength(8);
+    expect(PRESCHOOL_SONGS.some((s) => s.id === "twinkle-twinkle")).toBe(true);
+
+    for (const song of PRESCHOOL_SONGS) {
+      expect(song.title.length).toBeGreaterThan(3);
+      expect(song.bpm).toBeGreaterThan(60);
+      expect(song.notes.length).toBeGreaterThan(10);
+      for (const item of song.notes) {
+        expect(item.beats).toBeGreaterThan(0);
+        if (item.note !== null) {
+          expect(NOTE_FREQUENCIES[item.note]).toBeGreaterThan(0);
+        }
+        if (item.bass) {
+          expect(NOTE_FREQUENCIES[item.bass]).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  it("shuffles songs randomly without repeating the excluded previous song first", () => {
+    for (let i = 0; i < 20; i += 1) {
+      const queue = createShuffledSongQueue("twinkle-twinkle");
+      expect(queue).toHaveLength(PRESCHOOL_SONGS.length);
+      expect(new Set(queue.map((s) => s.id)).size).toBe(PRESCHOOL_SONGS.length);
+      expect(queue[0].id).not.toBe("twinkle-twinkle");
+    }
+  });
+
+  it("defaults background music to enabled and persists opt-out", () => {
+    expect(getMusicEnabled()).toBe(true);
+
+    setMusicEnabled(false);
+    expect(getMusicEnabled()).toBe(false);
+    expect(window.localStorage.getItem("littlesteps_bgm")).toBe("false");
+
+    setMusicEnabled(true);
+    expect(getMusicEnabled()).toBe(true);
+    expect(window.localStorage.getItem("littlesteps_bgm")).toBe("true");
+  });
+
+  it("switches to a non-repeating random song and stops cleanly when muted", () => {
+    startBackgroundMusic();
+    const first = getCurrentBackgroundSong();
+    expect(first).not.toBeNull();
+    expect(isBackgroundMusicPlaying()).toBe(true);
+
+    const next = skipToNextRandomSong();
+    expect(next).not.toBeNull();
+    expect(next?.id).not.toBe(first?.id);
+    expect(getCurrentBackgroundSong()?.id).toBe(next?.id);
+
+    setSoundEnabled(false);
+    expect(isBackgroundMusicPlaying()).toBe(false);
   });
 });

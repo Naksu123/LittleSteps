@@ -1,0 +1,124 @@
+name: LittleSteps CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-ci:
+    name: Backend Test & Migrations
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Python dependencies
+        run: pip install --no-cache-dir -r requirements.txt
+      - name: Run Alembic migrations & seed smoke test
+        env:
+          DATABASE_URL: sqlite:///./ci_smoke.db
+          JWT_SECRET_KEY: ci-test-secret-key-at-least-32-chars-long
+        run: |
+          alembic upgrade head
+          python -m app.db.seed
+      - name: Run pytest suite
+        run: pytest -v
+
+  frontend-ci:
+    name: Frontend Test, Typecheck, Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm --prefix frontend ci
+      - name: Run Jest unit tests
+        run: npm test
+      - name: TypeScript typecheck
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Production Next.js build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.example.littlesteps.edu
+        run: npm run build
+
+  infra-validate:
+    name: Validate IaC & Deployment Templates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --no-cache-dir pyyaml
+      - name: Parse CloudFormation, App Runner, Amplify & Compose YAML
+        run: |
+          python -c "
+          import yaml
+          class CfnLoader(yaml.SafeLoader): pass
+          for tag in ('!Ref', '!Sub', '!GetAtt', '!If', '!Not', '!Equals'):
+              CfnLoader.add_multi_constructor(tag, lambda l, t, n: {t: n.value})
+          for path in (
+              'infrastructure/aws/cloudformation-mvp.yaml',
+              'infrastructure/aws/apprunner.yaml',
+              'infrastructure/aws/amplify.yml',
+              'docker-compose.yml',
+          ):
+              with open(path, 'r', encoding='utf-8') as fh:
+                  yaml.load(fh, Loader=CfnLoader)
+              print('Validated:', path)
+          "
+
+  deploy-backend:
+    name: Build & Deploy Backend to ECR + App Runner
+    needs: [backend-ci, frontend-ci, infra-validate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AWS_REGION != ''
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Check AWS deploy secret configuration
+        id: check-secret
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          if [ -n "$AWS_DEPLOY_ROLE_ARN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.check-secret.outputs.configured == 'true'
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.check-secret.outputs.configured == 'true'
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: login-ecr
+        if: steps.check-secret.outputs.configured == 'true'
+      - name: Build & push backend container image
+        if: steps.check-secret.outputs.configured == 'true'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'littlesteps-backend-prod' }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" -t "$ECR_REGISTRY/$ECR_REPOSITORY:latest" ./backend
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+      - name: Trigger AWS App Runner deployment
+        if: steps.check-secret.outputs.configured == 'true' && vars.APPRUNNER_SERVICE_ARN != ''
+        run: aws apprunner start-deployment --service-arn "${{ vars.APPRUNNER_SERVICE_ARN }}"

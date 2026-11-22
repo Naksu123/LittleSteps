@@ -1,0 +1,21 @@
+version: 1.0
+runtime: python312
+build:
+  commands:
+    build:
+      - pip install --no-cache-dir -r backend/requirements.txt
+run:
+  runtime-version: 3.12
+  command: sh -c "cd backend && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"
+  network:
+    port: 8000
+    env: PORT
+  env:
+    - name: APP_ENV
+      value: production
+    - name: STORAGE_BACKEND
+      value: s3
+    - name: LOG_FORMAT
+      value: json
+    - name: RUN_MIGRATIONS
+      value: "true"

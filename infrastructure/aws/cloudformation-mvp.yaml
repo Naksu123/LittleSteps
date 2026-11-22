@@ -1,0 +1,304 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  LittleSteps Cloud-Based Kindergarten LMS - Cost-Effective AWS MVP Stack
+  Provisions: Private S3 Media Bucket (+ TLS policy), ECR Repository, Secrets Manager Secret,
+  CloudWatch Log Group & Alarms, Least-Privilege App Runner IAM Roles, RDS PostgreSQL 16,
+  and optional Two-Pass App Runner Service deployment.
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+  DBUsername:
+    Type: String
+    Default: littlesteps_admin
+    NoEcho: true
+  DBPassword:
+    Type: String
+    MinLength: 12
+    NoEcho: true
+  JWTSecretKey:
+    Type: String
+    MinLength: 32
+    NoEcho: true
+  DBInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+    AllowedValues: [db.t4g.micro, db.t4g.small]
+  FrontendOrigin:
+    Type: String
+    Default: "*"
+    Description: Amplify or CloudFront HTTPS origin allowed by backend CORS (replace '*' once Amplify deploys)
+  AllowedDBCidr:
+    Type: String
+    Default: "0.0.0.0/0"
+    Description: CIDR allowed to access RDS port 5432 (restrict to VPC or campus IP in production)
+  AppRunnerImageUri:
+    Type: String
+    Default: ""
+    Description: ECR container image URI supplied on Pass 2 to provision the App Runner service
+
+Conditions:
+  HasAppRunnerImage: !Not [!Equals [!Ref AppRunnerImageUri, ""]]
+
+Resources:
+  MediaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "littlesteps-media-${AWS::AccountId}-${EnvironmentName}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: AbortIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: [GET, PUT, POST]
+            AllowedOrigins:
+              - !Ref FrontendOrigin
+            MaxAge: 3600
+
+  MediaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MediaBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt MediaBucket.Arn
+              - !Sub "${MediaBucket.Arn}/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+
+  BackendECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "littlesteps-backend-${EnvironmentName}"
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep last 5 container images to stay within free tier",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 5
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+
+  AppCloudWatchLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/littlesteps/${EnvironmentName}/backend"
+      RetentionInDays: 14
+
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow PostgreSQL access to LittleSteps RDS
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: !Ref AllowedDBCidr
+          Description: Restrict to App Runner VPC Connector or trusted IP CIDR in production
+
+  LittleStepsDB:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub "littlesteps-db-${EnvironmentName}"
+      Engine: postgres
+      EngineVersion: "16"
+      DBInstanceClass: !Ref DBInstanceClass
+      AllocatedStorage: 20
+      StorageType: gp3
+      StorageEncrypted: true
+      AutoMinorVersionUpgrade: true
+      DBName: littlesteps
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      BackupRetentionPeriod: 7
+      PubliclyAccessible: true
+      VPCSecurityGroups:
+        - !GetAtt RDSSecurityGroup.GroupId
+      EnableCloudwatchLogsExports:
+        - postgresql
+      MultiAZ: false
+
+  RDSHighCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "littlesteps-${EnvironmentName}-rds-high-cpu"
+      AlarmDescription: Alert when RDS PostgreSQL CPU utilization exceeds 80 percent
+      Namespace: AWS/RDS
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref LittleStepsDB
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+
+  RDSLowStorageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "littlesteps-${EnvironmentName}-rds-low-storage"
+      AlarmDescription: Alert when RDS free storage drops below 2 GB
+      Namespace: AWS/RDS
+      MetricName: FreeStorageSpace
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref LittleStepsDB
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 2147483648
+      ComparisonOperator: LessThanThreshold
+
+  AppSecrets:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "littlesteps/${EnvironmentName}/app-config"
+      Description: Runtime secrets for LittleSteps FastAPI backend
+      SecretString: !Sub |
+        {
+          "JWT_SECRET_KEY": "${JWTSecretKey}",
+          "DATABASE_URL": "postgresql+psycopg://${DBUsername}:${DBPassword}@${LittleStepsDB.Endpoint.Address}:${LittleStepsDB.Endpoint.Port}/littlesteps",
+          "S3_BUCKET_NAME": "${MediaBucket}",
+          "CORS_ORIGINS": "${FrontendOrigin}"
+        }
+
+  AppRunnerECRAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "LittleStepsAppRunnerECRRole-${EnvironmentName}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: build.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess
+
+  AppRunnerInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "LittleStepsAppRunnerInstanceRole-${EnvironmentName}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: tasks.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LittleStepsLeastPrivilegePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !GetAtt MediaBucket.Arn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub "${MediaBucket.Arn}/*"
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref AppSecrets
+
+  AppRunnerService:
+    Type: AWS::AppRunner::Service
+    Condition: HasAppRunnerImage
+    Properties:
+      ServiceName: !Sub "littlesteps-api-${EnvironmentName}"
+      HealthCheckConfiguration:
+        Protocol: HTTP
+        Path: /api/health
+        Interval: 10
+        Timeout: 5
+        HealthyThreshold: 1
+        UnhealthyThreshold: 5
+      InstanceConfiguration:
+        Cpu: "256"
+        Memory: "512"
+        InstanceRoleArn: !GetAtt AppRunnerInstanceRole.Arn
+      SourceConfiguration:
+        AutoDeploymentsEnabled: false
+        AuthenticationConfiguration:
+          AccessRoleArn: !GetAtt AppRunnerECRAccessRole.Arn
+        ImageRepository:
+          ImageIdentifier: !Ref AppRunnerImageUri
+          ImageRepositoryType: ECR
+          ImageConfiguration:
+            Port: "8000"
+            RuntimeEnvironmentVariables:
+              - Name: APP_ENV
+                Value: production
+              - Name: STORAGE_BACKEND
+                Value: s3
+              - Name: S3_BUCKET_NAME
+                Value: !Ref MediaBucket
+              - Name: AWS_REGION
+                Value: !Ref AWS::Region
+              - Name: AWS_SECRETS_MANAGER_ARN
+                Value: !Ref AppSecrets
+              - Name: CORS_ORIGINS
+                Value: !Ref FrontendOrigin
+              - Name: LOG_FORMAT
+                Value: json
+              - Name: RUN_MIGRATIONS
+                Value: "true"
+
+Outputs:
+  MediaBucketName:
+    Value: !Ref MediaBucket
+  ECRRepositoryUri:
+    Value: !GetAtt BackendECRRepository.RepositoryUri
+  RDSEndpoint:
+    Value: !GetAtt LittleStepsDB.Endpoint.Address
+  SecretsManagerArn:
+    Value: !Ref AppSecrets
+  CloudWatchLogGroupName:
+    Value: !Ref AppCloudWatchLogGroup
+  AppRunnerECRAccessRoleArn:
+    Value: !GetAtt AppRunnerECRAccessRole.Arn
+  AppRunnerInstanceRoleArn:
+    Value: !GetAtt AppRunnerInstanceRole.Arn
+  AppRunnerServiceUrl:
+    Condition: HasAppRunnerImage
+    Value: !Sub "https://${AppRunnerService.ServiceUrl}"

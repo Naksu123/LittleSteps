@@ -256,3 +256,107 @@ def test_weekly_report_endpoint_and_isolation(client: TestClient) -> None:
         ).status_code
         == 403
     )
+
+
+def test_parent_add_child_profile_and_serverless_session_rehydration(
+    client: TestClient, monkeypatch
+) -> None:
+    from app.core.security import create_access_token
+
+    # 1. Parent registers a new account and creates two child learner profiles
+    reg = client.post(
+        "/api/auth/register",
+        json={
+            "email": "arthur.parent@example.com",
+            "password": "ParentPassword2026!",
+            "full_name": "Arthur Parent",
+            "privacy_consent_accepted": True,
+        },
+    )
+    assert reg.status_code == 201, reg.text
+    tokens = reg.json()
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+    child1 = client.post(
+        "/api/children",
+        headers=headers,
+        json={
+            "display_name": "arthur ni",
+            "birth_year": 2021,
+            "age_group": "4-5",
+            "avatar_key": "bunny",
+            "favorite_color": "#78C8F5",
+            "daily_goal_minutes": 20,
+        },
+    )
+    assert child1.status_code == 201, child1.text
+    c1_body = child1.json()
+    assert c1_body["display_name"] == "arthur ni"
+    assert c1_body["birth_year"] == 2021
+    assert c1_body["age_group"] == "4-5"
+    assert c1_body["avatar_key"] == "bunny"
+    assert c1_body["daily_goal_minutes"] == 20
+
+    # Duplicate child name rejected with 409
+    dup_child = client.post(
+        "/api/children",
+        headers=headers,
+        json={
+            "display_name": "Arthur Ni",
+            "birth_year": 2021,
+            "age_group": "4-5",
+            "avatar_key": "bunny",
+            "favorite_color": "#78C8F5",
+            "daily_goal_minutes": 20,
+        },
+    )
+    assert dup_child.status_code == 409
+
+    # Create a second child profile under the same parent
+    child2 = client.post(
+        "/api/children",
+        headers=headers,
+        json={
+            "display_name": "Lily",
+            "birth_year": 2020,
+            "age_group": "5-6",
+            "avatar_key": "owl",
+            "favorite_color": "#9BE7C4",
+            "daily_goal_minutes": 25,
+        },
+    )
+    assert child2.status_code == 201, child2.text
+
+    dash = client.get("/api/parent/dashboard", headers=headers)
+    assert dash.status_code == 200
+    child_names = {item["child"]["display_name"] for item in dash.json()["children"]}
+    assert child_names == {"arthur ni", "Lily"}
+
+    # Another parent cannot access 'arthur ni'
+    p2_headers = login_headers(client, "parent2@littlesteps.edu")
+    assert client.get(f"/api/children/{c1_body['id']}", headers=p2_headers).status_code == 403
+
+    # 2. Simulate Vercel serverless container switch where a newly registered parent's
+    # signed JWT hits a fresh worker before that user row exists in local /tmp SQLite
+    monkeypatch.setenv("VERCEL", "1")
+    serverless_token = create_access_token(
+        subject="99999999-8888-4777-8666-555555555555",
+        roles=["parent"],
+        email="serverless.parent@example.com",
+        full_name="Serverless Guardian",
+    )
+    sv_headers = {"Authorization": f"Bearer {serverless_token}"}
+    sv_child = client.post(
+        "/api/children",
+        headers=sv_headers,
+        json={
+            "display_name": "Noel",
+            "birth_year": 2021,
+            "age_group": "4-5",
+            "avatar_key": "dino",
+            "favorite_color": "#78C8F5",
+            "daily_goal_minutes": 20,
+        },
+    )
+    assert sv_child.status_code == 201, sv_child.text
+    assert sv_child.json()["display_name"] == "Noel"

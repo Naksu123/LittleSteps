@@ -7,7 +7,7 @@ from app.core.security import decode_token
 from app.models.learner import Child
 from app.models.user import User
 from app.repositories.learner_repo import parent_owns_child, teacher_has_child
-from app.repositories.user_repo import get_user_by_id
+from app.services.auth_service import ensure_user_from_token_claims
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -37,7 +37,7 @@ def get_current_user(
             detail="Invalid access token.",
         )
 
-    user = get_user_by_id(db, str(payload["sub"]))
+    user = ensure_user_from_token_claims(db, payload)
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

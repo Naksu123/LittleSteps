@@ -1,7 +1,7 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Optional
 
 import bcrypt
 import jwt
@@ -25,7 +25,12 @@ def hash_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
 
-def create_access_token(subject: str, roles: list[str]) -> str:
+def create_access_token(
+    subject: str,
+    roles: list[str],
+    email: Optional[str] = None,
+    full_name: Optional[str] = None,
+) -> str:
     """Create a signed JWT access token."""
     now = datetime.now(timezone.utc)
     expire = now + timedelta(minutes=settings.JWT_ACCESS_EXPIRE_MINUTES)
@@ -36,10 +41,19 @@ def create_access_token(subject: str, roles: list[str]) -> str:
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
     }
+    if email:
+        payload["email"] = email
+    if full_name:
+        payload["full_name"] = full_name
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
-def create_refresh_token(subject: str) -> tuple[str, datetime]:
+def create_refresh_token(
+    subject: str,
+    email: Optional[str] = None,
+    full_name: Optional[str] = None,
+    roles: Optional[list[str]] = None,
+) -> tuple[str, datetime]:
     """Create a signed JWT refresh token alongside its UTC expiry timestamp."""
     now = datetime.now(timezone.utc)
     expire = now + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS)
@@ -50,6 +64,12 @@ def create_refresh_token(subject: str) -> tuple[str, datetime]:
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
     }
+    if email:
+        payload["email"] = email
+    if full_name:
+        payload["full_name"] = full_name
+    if roles:
+        payload["roles"] = roles
     token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     return token, expire
 

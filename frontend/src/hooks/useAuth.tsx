@@ -11,6 +11,7 @@ import {
   authApi,
   clearStoredTokens,
   getStoredTokens,
+  onAuthExpired,
   setStoredTokens,
 } from "@/services/api";
 import type { Child, UserSummary } from "@/types";
@@ -98,6 +99,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void refreshUser();
   }, [refreshUser]);
+
+  useEffect(() => {
+    return onAuthExpired(() => {
+      setUser(null);
+      setChildrenList([]);
+    });
+  }, []);
 
   const login = useCallback(
     async (email: string, password: string): Promise<UserSummary> => {

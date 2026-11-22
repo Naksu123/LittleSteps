@@ -1,7 +1,7 @@
 import hmac
 import os
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
@@ -16,9 +16,79 @@ from app.core.security import (
     hash_token,
     verify_password,
 )
-from app.models.user import ParentProfile, RefreshToken, Role, User, UserRole
+from app.models.user import (
+    AdminProfile,
+    ParentProfile,
+    RefreshToken,
+    Role,
+    TeacherProfile,
+    User,
+    UserRole,
+)
 from app.repositories.user_repo import get_role_by_name, get_user_by_email, get_user_by_id
 from app.services.audit_service import record_audit
+
+
+def ensure_user_from_token_claims(
+    db: Session, payload: dict[str, Any]
+) -> Optional[User]:
+    """Resolve authenticated user by ID or email, re-hydrating across ephemeral serverless workers if needed."""
+    sub = str(payload.get("sub") or "").strip()
+    if not sub:
+        return None
+
+    user = get_user_by_id(db, sub)
+    if user is not None:
+        return user
+
+    claim_email = str(payload.get("email") or "").strip().lower()
+    if claim_email:
+        by_email = get_user_by_email(db, claim_email)
+        if by_email is not None:
+            return by_email
+
+    # On Vercel serverless with ephemeral /tmp SQLite, a newly registered parent account
+    # created on Worker A may hit Worker B on the next request. Re-hydrate from signed JWT claims.
+    if os.getenv("VERCEL") and claim_email:
+        claim_name = str(payload.get("full_name") or "Parent Guardian").strip()
+        raw_roles = payload.get("roles")
+        role_names = (
+            [str(r) for r in raw_roles if isinstance(r, str)]
+            if isinstance(raw_roles, list) and raw_roles
+            else ["parent"]
+        )
+        now = datetime.now(timezone.utc)
+        rehydrated = User(
+            id=sub,
+            email=claim_email,
+            password_hash=hash_password(os.urandom(16).hex()),
+            full_name=claim_name,
+            is_active=True,
+            privacy_consent_accepted_at=now,
+            last_login_at=now,
+        )
+        db.add(rehydrated)
+        db.flush()
+
+        for r_name in role_names:
+            role_obj = get_role_by_name(db, r_name)
+            if not role_obj:
+                role_obj = Role(name=r_name, description=f"{r_name.capitalize()} role")
+                db.add(role_obj)
+                db.flush()
+            db.add(UserRole(user_id=rehydrated.id, role_id=role_obj.id))
+
+        if "parent" in role_names:
+            db.add(ParentProfile(user_id=rehydrated.id))
+        if "teacher" in role_names:
+            db.add(TeacherProfile(user_id=rehydrated.id, specialization="Kindergarten Education"))
+        if "admin" in role_names:
+            db.add(AdminProfile(user_id=rehydrated.id))
+
+        db.commit()
+        return get_user_by_id(db, sub)
+
+    return None
 
 
 def register_parent(
@@ -215,7 +285,7 @@ def rotate_refresh_token(db: Session, raw_refresh_token: str) -> tuple[User, str
             )
         stored.revoked_at = now
     elif os.getenv("VERCEL"):
-        user = get_user_by_id(db, str(payload["sub"]))
+        user = ensure_user_from_token_claims(db, payload)
         if not user or not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -264,8 +334,18 @@ def revoke_refresh_token(
 
 def _issue_token_pair(db: Session, user: User) -> tuple[str, str]:
     roles = user.role_names
-    access_token = create_access_token(user.id, roles)
-    refresh_token, expires_at = create_refresh_token(user.id)
+    access_token = create_access_token(
+        user.id,
+        roles,
+        email=user.email,
+        full_name=user.full_name,
+    )
+    refresh_token, expires_at = create_refresh_token(
+        user.id,
+        email=user.email,
+        full_name=user.full_name,
+        roles=roles,
+    )
     db.add(
         RefreshToken(
             user_id=user.id,

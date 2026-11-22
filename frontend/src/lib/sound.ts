@@ -48,7 +48,7 @@ export function stopAllActiveAudio(): void {
 }
 
 export function onAudioSettingsChange(listener: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
+  if (typeof window === "undefined") return () => { };
   window.addEventListener(AUDIO_EVENT, listener);
   return () => window.removeEventListener(AUDIO_EVENT, listener);
 }
@@ -131,7 +131,7 @@ export function getSharedAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (sharedAudioCtx && sharedAudioCtx.state !== "closed") {
     if (sharedAudioCtx.state === "suspended") {
-      sharedAudioCtx.resume?.().catch(() => {});
+      sharedAudioCtx.resume?.().catch(() => { });
     }
     return sharedAudioCtx;
   }
@@ -144,7 +144,7 @@ export function getSharedAudioContext(): AudioContext | null {
   try {
     sharedAudioCtx = new Ctx();
     if (sharedAudioCtx.state === "suspended") {
-      sharedAudioCtx.resume?.().catch(() => {});
+      sharedAudioCtx.resume?.().catch(() => { });
     }
     return sharedAudioCtx;
   } catch {

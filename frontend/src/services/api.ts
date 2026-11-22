@@ -103,6 +103,10 @@ async function cachedGet<T>(key: string, fetcher: () => Promise<T>): Promise<T> 
 
 const ACCESS_TOKEN_KEY = "littlesteps_access_token";
 const REFRESH_TOKEN_KEY = "littlesteps_refresh_token";
+const AUTH_EXPIRED_EVENT = "littlesteps-auth-expired";
+
+let memoryAccessToken: string | null = null;
+let memoryRefreshToken: string | null = null;
 
 export class ApiError extends Error {
   status: number;
@@ -113,30 +117,91 @@ export class ApiError extends Error {
   }
 }
 
+export function onAuthExpired(listener: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(AUTH_EXPIRED_EVENT, listener);
+  return () => window.removeEventListener(AUTH_EXPIRED_EVENT, listener);
+}
+
+function notifyAuthExpired(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+  } catch {
+    // Ignore event dispatch errors
+  }
+}
+
+function isJwtExpiredOrExpiring(token: string, bufferSeconds = 20): boolean {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json =
+      typeof window !== "undefined" && typeof window.atob === "function"
+        ? window.atob(base64)
+        : Buffer.from(base64, "base64").toString("utf-8");
+    const payload = JSON.parse(json) as { exp?: number };
+    if (typeof payload.exp !== "number") return false;
+    return payload.exp * 1000 <= Date.now() + bufferSeconds * 1000;
+  } catch {
+    return false;
+  }
+}
+
 export function getStoredTokens(): {
   accessToken: string | null;
   refreshToken: string | null;
 } {
   if (typeof window === "undefined") {
-    return { accessToken: null, refreshToken: null };
+    return {
+      accessToken: memoryAccessToken,
+      refreshToken: memoryRefreshToken,
+    };
+  }
+  try {
+    const lsAccess = window.localStorage.getItem(ACCESS_TOKEN_KEY);
+    const lsRefresh = window.localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (lsAccess) memoryAccessToken = lsAccess;
+    if (lsRefresh) memoryRefreshToken = lsRefresh;
+    if (!lsAccess && memoryAccessToken) {
+      window.localStorage.setItem(ACCESS_TOKEN_KEY, memoryAccessToken);
+    }
+    if (!lsRefresh && memoryRefreshToken) {
+      window.localStorage.setItem(REFRESH_TOKEN_KEY, memoryRefreshToken);
+    }
+  } catch {
+    // Fall back to in-memory tokens if storage is restricted
   }
   return {
-    accessToken: window.localStorage.getItem(ACCESS_TOKEN_KEY),
-    refreshToken: window.localStorage.getItem(REFRESH_TOKEN_KEY),
+    accessToken: memoryAccessToken,
+    refreshToken: memoryRefreshToken,
   };
 }
 
 export function setStoredTokens(accessToken: string, refreshToken: string): void {
+  memoryAccessToken = accessToken;
+  memoryRefreshToken = refreshToken;
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-  window.localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  try {
+    window.localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    window.localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  } catch {
+    // Keep in-memory tokens active
+  }
 }
 
 export function clearStoredTokens(): void {
+  memoryAccessToken = null;
+  memoryRefreshToken = null;
   invalidateContentCache();
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(ACCESS_TOKEN_KEY);
-  window.localStorage.removeItem(REFRESH_TOKEN_KEY);
+  try {
+    window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+    window.localStorage.removeItem(REFRESH_TOKEN_KEY);
+  } catch {
+    // Ignore storage removal errors
+  }
 }
 
 let refreshPromise: Promise<string | null> | null = null;
@@ -172,12 +237,65 @@ async function attemptTokenRefresh(): Promise<string | null> {
   return refreshPromise;
 }
 
+function formatFriendlyErrorMessage(
+  status: number,
+  rawDetail: string | undefined,
+  isPublicAuthEndpoint: boolean
+): string {
+  if (isPublicAuthEndpoint && rawDetail) {
+    return rawDetail;
+  }
+  if (status === 401) {
+    if (
+      !rawDetail ||
+      rawDetail.includes("Authentication credentials were not provided")
+    ) {
+      return "We couldn't verify your account. Please sign in again.";
+    }
+    return "Your session has expired. Please sign in again.";
+  }
+  if (status === 403) {
+    if (
+      !rawDetail ||
+      rawDetail.includes("permission") ||
+      rawDetail.includes("not authorized")
+    ) {
+      return "You don't have permission to perform this action.";
+    }
+    return rawDetail;
+  }
+  if (status >= 500) {
+    return "Something went wrong while saving the profile. Please try again.";
+  }
+  return rawDetail || "Something went wrong. Please try again.";
+}
+
 async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
   retryOnAuth = true
 ): Promise<T> {
-  const { accessToken } = getStoredTokens();
+  const isPublicAuthEndpoint =
+    path === "/api/auth/login" ||
+    path === "/api/auth/staff-login" ||
+    path === "/api/auth/register" ||
+    path === "/api/auth/refresh";
+
+  let { accessToken } = getStoredTokens();
+  const { refreshToken } = getStoredTokens();
+
+  if (
+    !isPublicAuthEndpoint &&
+    retryOnAuth &&
+    refreshToken &&
+    (!accessToken || isJwtExpiredOrExpiring(accessToken))
+  ) {
+    const refreshed = await attemptTokenRefresh();
+    if (refreshed) {
+      accessToken = refreshed;
+    }
+  }
+
   const headers = new Headers(options.headers || {});
   if (!headers.has("Content-Type") && options.body) {
     headers.set("Content-Type", "application/json");
@@ -191,11 +309,12 @@ async function apiRequest<T>(
     headers,
   });
 
-  if (response.status === 401 && retryOnAuth && !path.startsWith("/api/auth/")) {
+  if (response.status === 401 && retryOnAuth && !isPublicAuthEndpoint) {
     const newAccess = await attemptTokenRefresh();
     if (newAccess) {
       return apiRequest<T>(path, options, false);
     }
+    notifyAuthExpired();
   }
 
   if (response.status === 204) {
@@ -204,10 +323,13 @@ async function apiRequest<T>(
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const detail =
-      typeof data?.detail === "string"
-        ? data.detail
-        : "Something went wrong. Please try again.";
+    const rawDetail =
+      typeof data?.detail === "string" ? data.detail : undefined;
+    const detail = formatFriendlyErrorMessage(
+      response.status,
+      rawDetail,
+      isPublicAuthEndpoint
+    );
     throw new ApiError(detail, response.status);
   }
 

@@ -56,7 +56,17 @@ def create_child(
 ):
     """Create a child-safe learner profile linked to the creating parent/guardian."""
     clean_display_name = " ".join(payload.display_name.strip().split())
-    if db.scalar(select(Child.id).where(func.lower(Child.display_name) == clean_display_name.lower())):
+    existing_for_parent = db.scalar(
+        select(Child.id)
+        .join(ParentChildRelationship, ParentChildRelationship.child_id == Child.id)
+        .where(
+            ParentChildRelationship.parent_user_id == current_user.id,
+            func.lower(Child.display_name) == clean_display_name.lower(),
+        )
+    )
+    if existing_for_parent or db.scalar(
+        select(Child.id).where(func.lower(Child.display_name) == clean_display_name.lower())
+    ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A learner profile with this name already exists.",

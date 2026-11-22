@@ -63,9 +63,11 @@ import type {
   WeeklyReport,
 } from "@/types";
 
+const ADD_CHILD_DRAFT_KEY = "littlesteps_add_child_draft";
+
 function ParentPortalContent() {
   const router = useRouter();
-  const { activeChildId, setActiveChildId, refreshUser } = useAuth();
+  const { activeChildId, setActiveChildId, refreshUser, isLoading: authLoading, isAuthenticated } = useAuth();
   const [dashboard, setDashboard] = useState<ParentDashboardData | null>(null);
   const [homeThemes, setHomeThemes] = useState<ParentHomeLearningTheme[]>([]);
   const [notifList, setNotifList] = useState<NotificationList | null>(null);
@@ -80,8 +82,10 @@ function ParentPortalContent() {
   const [editError, setEditError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const hasLoadedRef = useRef(false);
+  const submittingChildRef = useRef(false);
 
   const loadParentData = useCallback(async () => {
+    if (authLoading || !isAuthenticated) return;
     if (!hasLoadedRef.current) {
       setLoading(true);
     }
@@ -101,11 +105,13 @@ function ParentPortalContent() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authLoading, isAuthenticated]);
 
   useEffect(() => {
-    void loadParentData();
-  }, [loadParentData]);
+    if (!authLoading && isAuthenticated) {
+      void loadParentData();
+    }
+  }, [authLoading, isAuthenticated, loadParentData]);
 
   const childItems = dashboard?.children || [];
   const activeItem =
@@ -171,18 +177,69 @@ function ParentPortalContent() {
     setEditOpen(true);
   }
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const savedDraft = window.sessionStorage.getItem(ADD_CHILD_DRAFT_KEY);
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft) as Partial<AddChildFormValues>;
+        reset({
+          display_name: parsed.display_name || "",
+          birth_year: parsed.birth_year || 2021,
+          age_group: parsed.age_group || "4-5",
+          avatar_key: parsed.avatar_key || "bunny",
+          favorite_color: parsed.favorite_color || "#78C8F5",
+          daily_goal_minutes: parsed.daily_goal_minutes || 20,
+        });
+        setAddOpen(true);
+      }
+    } catch {
+      // Ignore draft parse errors
+    }
+  }, [reset]);
+
   async function handleAddChild(values: AddChildFormValues) {
+    if (submittingChildRef.current) return;
+    submittingChildRef.current = true;
     setAddError(null);
+
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.setItem(ADD_CHILD_DRAFT_KEY, JSON.stringify(values));
+      } catch {
+        // Ignore sessionStorage errors
+      }
+    }
+
     try {
       const created = await childrenApi.create(values);
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.removeItem(ADD_CHILD_DRAFT_KEY);
+        } catch {
+          // Ignore sessionStorage errors
+        }
+      }
       setActiveChildId(created.id);
-      reset();
+      reset({
+        display_name: "",
+        birth_year: 2021,
+        age_group: "4-5",
+        avatar_key: "bunny",
+        favorite_color: "#78C8F5",
+        daily_goal_minutes: 20,
+      });
       setAddOpen(false);
+      setActionToast(`Added ${created.display_name}'s learner profile!`);
       await Promise.all([refreshUser(), loadParentData()]);
     } catch (err) {
       setAddError(
-        err instanceof ApiError ? err.message : "Could not add learner profile."
+        err instanceof ApiError
+          ? err.message
+          : "Something went wrong while saving the profile. Please try again."
       );
+    } finally {
+      submittingChildRef.current = false;
     }
   }
 

@@ -1,9 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import {
+  addChildSchema,
   learningGoalSchema,
   parentSettingsSchema,
   reflectionSchema,
 } from "@/lib/validation";
+import {
+  clearStoredTokens,
+  getStoredTokens,
+  setStoredTokens,
+} from "@/services/api";
 
 describe("Parent Portal validation schemas", () => {
   it("validates parent reflections and rejects overly long notes", () => {
@@ -67,5 +73,34 @@ describe("Parent Portal validation schemas", () => {
 
     expect(screen.getByText("Mia's Weekly Report")).toBeInTheDocument();
     expect(screen.queryByText(/rank|leaderboard|percentile/i)).toBeNull();
+  });
+
+  it("validates Add Child Learner Profile form fields and preserves tokens across storage checks", () => {
+    const parsed = addChildSchema.safeParse({
+      display_name: "arthur ni",
+      birth_year: 2021,
+      age_group: "4-5",
+      avatar_key: "bunny",
+      favorite_color: "#78C8F5",
+      daily_goal_minutes: 20,
+    });
+    expect(parsed.success).toBe(true);
+
+    setStoredTokens("access-token-123", "refresh-token-456");
+    expect(getStoredTokens()).toEqual({
+      accessToken: "access-token-123",
+      refreshToken: "refresh-token-456",
+    });
+
+    // If localStorage is unexpectedly cleared while tab memory still holds session,
+    // getStoredTokens recovers the in-memory tokens automatically
+    window.localStorage.removeItem("littlesteps_access_token");
+    expect(getStoredTokens().accessToken).toBe("access-token-123");
+
+    clearStoredTokens();
+    expect(getStoredTokens()).toEqual({
+      accessToken: null,
+      refreshToken: null,
+    });
   });
 });

@@ -39,7 +39,7 @@ import {
   type AddChildFormValues,
   type EditChildFormValues,
 } from "@/lib/validation";
-import { ApiError, childrenApi, parentApi } from "@/services/api";
+import { ApiError, childrenApi, parentApi, prefetchPortalData } from "@/services/api";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Alert } from "@/components/ui/alert";
@@ -305,7 +305,18 @@ function ParentPortalContent() {
     }
   }
 
-  const featuredHome = homeThemes[0];
+  const featuredHome: ParentHomeLearningTheme | null =
+    homeThemes[0] ||
+    (dashboard?.current_theme
+      ? {
+          theme: dashboard.current_theme,
+          parent_guide: dashboard.current_theme.parent_guide,
+          home_activities: dashboard.current_theme.home_activities,
+          objectives: dashboard.current_theme.objectives,
+          worksheets: [],
+          reflections: [],
+        }
+      : null);
   const featuredActivity = featuredHome?.home_activities[0];
 
   function launchKidsMode(childId: string) {
@@ -331,7 +342,16 @@ function ParentPortalContent() {
 
       {/* Quick Hub Navigation */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <Link href="/parent/home-learning" className="min-w-0">
+        <Link
+          href="/parent/home-learning"
+          onMouseEnter={() =>
+            prefetchPortalData("/parent/home-learning", targetChildId)
+          }
+          onTouchStart={() =>
+            prefetchPortalData("/parent/home-learning", targetChildId)
+          }
+          className="min-w-0"
+        >
           <Card className="h-full hover:border-[#FF9C8C] transition-colors cursor-pointer bg-[#FFE3DE]/35">
             <CardContent className="p-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -350,7 +370,16 @@ function ParentPortalContent() {
           </Card>
         </Link>
 
-        <Link href="/parent/reports" className="min-w-0">
+        <Link
+          href="/parent/reports"
+          onMouseEnter={() =>
+            prefetchPortalData("/parent/reports", targetChildId)
+          }
+          onTouchStart={() =>
+            prefetchPortalData("/parent/reports", targetChildId)
+          }
+          className="min-w-0"
+        >
           <Card className="h-full hover:border-[#78C8F5] transition-colors cursor-pointer bg-[#DCF2FD]/45">
             <CardContent className="p-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -369,7 +398,16 @@ function ParentPortalContent() {
           </Card>
         </Link>
 
-        <Link href="/parent/settings" className="min-w-0 sm:col-span-2 lg:col-span-1">
+        <Link
+          href="/parent/settings"
+          onMouseEnter={() =>
+            prefetchPortalData("/parent/settings", targetChildId)
+          }
+          onTouchStart={() =>
+            prefetchPortalData("/parent/settings", targetChildId)
+          }
+          className="min-w-0 sm:col-span-2 lg:col-span-1"
+        >
           <Card className="h-full hover:border-[#9BE7C4] transition-colors cursor-pointer bg-[#DDF8EC]/45">
             <CardContent className="p-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">

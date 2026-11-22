@@ -38,18 +38,21 @@ def list_subjects(
             select(Subject).where(Subject.is_active.is_(True)).order_by(Subject.sort_order.asc())
         ).all()
     )
+    subject_ids = [s.id for s in subjects]
+    counts_by_subject: dict[str, int] = {}
+    if subject_ids:
+        counts_by_subject = {
+            sid: cnt
+            for sid, cnt in db.execute(
+                select(Lesson.subject_id, func.count(Lesson.id))
+                .where(Lesson.subject_id.in_(subject_ids), Lesson.status == "published")
+                .group_by(Lesson.subject_id)
+            ).all()
+        }
     results: list[SubjectOut] = []
     for subj in subjects:
-        count = (
-            db.scalar(
-                select(func.count(Lesson.id)).where(
-                    Lesson.subject_id == subj.id, Lesson.status == "published"
-                )
-            )
-            or 0
-        )
         item = SubjectOut.model_validate(subj)
-        item.lesson_count = count
+        item.lesson_count = counts_by_subject.get(subj.id, 0)
         results.append(item)
     return results
 

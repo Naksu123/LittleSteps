@@ -5,7 +5,6 @@ from urllib.parse import parse_qsl, quote_plus, urlencode, urlsplit, urlunsplit
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
-from sqlalchemy.pool import NullPool
 
 from app.core.config import find_postgres_url_from_env, settings
 
@@ -116,7 +115,11 @@ def _build_engine() -> Engine:
     else:
         connect_args["prepare_threshold"] = None
         if os.getenv("VERCEL"):
-            engine_kwargs["poolclass"] = NullPool
+            engine_kwargs["pool_pre_ping"] = True
+            engine_kwargs["pool_size"] = 3
+            engine_kwargs["max_overflow"] = 5
+            engine_kwargs["pool_recycle"] = 240
+            engine_kwargs["pool_timeout"] = 15
         else:
             engine_kwargs["pool_pre_ping"] = True
             engine_kwargs["pool_size"] = settings.DB_POOL_SIZE

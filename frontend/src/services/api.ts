@@ -70,39 +70,48 @@ function getApiBase(): string {
 }
 
 const CONTENT_CACHE_TTL_MS = 60_000;
-const contentCache = new Map<string, { expiresAt: number; value: unknown }>();
-const contentInflight = new Map<string, Promise<unknown>>();
+const PORTAL_CACHE_TTL_MS = 30_000;
+const responseCache = new Map<string, { expiresAt: number; value: unknown }>();
+const inflightRequests = new Map<string, Promise<unknown>>();
 
-export function invalidateContentCache(): void {
-  contentCache.clear();
-  contentInflight.clear();
+export function invalidateApiCache(): void {
+  responseCache.clear();
+  inflightRequests.clear();
 }
 
-async function cachedGet<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+export function invalidateContentCache(): void {
+  invalidateApiCache();
+}
+
+async function cachedGet<T>(
+  key: string,
+  fetcher: () => Promise<T>,
+  ttlMs = CONTENT_CACHE_TTL_MS
+): Promise<T> {
   if (process.env.NODE_ENV === "test") {
     return fetcher();
   }
   const now = Date.now();
-  const hit = contentCache.get(key);
+  const hit = responseCache.get(key);
   if (hit && hit.expiresAt > now) {
     return hit.value as T;
   }
-  const inflight = contentInflight.get(key);
+  const inflight = inflightRequests.get(key);
   if (inflight) {
     return inflight as Promise<T>;
   }
   const promise = fetcher()
     .then((res) => {
-      contentCache.set(key, {
-        expiresAt: Date.now() + CONTENT_CACHE_TTL_MS,
+      responseCache.set(key, {
+        expiresAt: Date.now() + ttlMs,
         value: res,
       });
       return res;
     })
     .finally(() => {
-      contentInflight.delete(key);
+      inflightRequests.delete(key);
     });
-  contentInflight.set(key, promise);
+  inflightRequests.set(key, promise);
   return promise;
 }
 
@@ -334,6 +343,11 @@ async function apiRequest<T>(
     notifyAuthExpired();
   }
 
+  const method = (options.method || "GET").toUpperCase();
+  if (response.ok && method !== "GET") {
+    invalidateApiCache();
+  }
+
   if (response.status === 204) {
     return undefined as T;
   }
@@ -415,6 +429,7 @@ async function apiUpload<T>(
         : "File upload failed. Please check file type and size.";
     throw new ApiError(detail, response.status);
   }
+  invalidateApiCache();
   return data as T;
 }
 
@@ -456,9 +471,18 @@ export const authApi = {
 };
 
 export const childrenApi = {
-  list: () => apiRequest<Child[]>("/api/children"),
+  list: () =>
+    cachedGet(
+      "children:list",
+      () => apiRequest<Child[]>("/api/children"),
+      PORTAL_CACHE_TTL_MS
+    ),
   progress: (childId: string) =>
-    apiRequest<ChildProgress>(`/api/children/${childId}/progress`),
+    cachedGet(
+      `children:progress:${childId}`,
+      () => apiRequest<ChildProgress>(`/api/children/${childId}/progress`),
+      PORTAL_CACHE_TTL_MS
+    ),
   create: (payload: {
     display_name: string;
     birth_year: number;
@@ -491,13 +515,21 @@ export const contentApi = {
   subjects: () =>
     cachedGet("subjects", () => apiRequest<Subject[]>("/api/subjects")),
   themes: () => cachedGet("themes", () => apiRequest<Theme[]>("/api/themes")),
-  themeDetail: (id: string) => apiRequest<ThemeDetail>(`/api/themes/${id}`),
+  themeDetail: (id: string) =>
+    cachedGet(`theme:${id}`, () => apiRequest<ThemeDetail>(`/api/themes/${id}`)),
   lessons: () =>
     cachedGet("lessons", () => apiRequest<Lesson[]>("/api/lessons")),
-  lessonDetail: (id: string) => apiRequest<LessonDetail>(`/api/lessons/${id}`),
-  lessonQuiz: (id: string) => apiRequest<Quiz | null>(`/api/lessons/${id}/quiz`),
+  lessonDetail: (id: string) =>
+    cachedGet(`lesson:${id}`, () =>
+      apiRequest<LessonDetail>(`/api/lessons/${id}`)
+    ),
+  lessonQuiz: (id: string) =>
+    cachedGet(`lesson-quiz:${id}`, () =>
+      apiRequest<Quiz | null>(`/api/lessons/${id}/quiz`)
+    ),
   games: () => cachedGet("games", () => apiRequest<Game[]>("/api/games")),
-  game: (id: string) => apiRequest<Game>(`/api/games/${id}`),
+  game: (id: string) =>
+    cachedGet(`game:${id}`, () => apiRequest<Game>(`/api/games/${id}`)),
 };
 
 export const progressApi = {
@@ -531,7 +563,11 @@ export const progressApi = {
       body: JSON.stringify(payload),
     }),
   summary: (childId: string) =>
-    apiRequest<ProgressSummary>(`/api/progress/summary/${childId}`),
+    cachedGet(
+      `progress:summary:${childId}`,
+      () => apiRequest<ProgressSummary>(`/api/progress/summary/${childId}`),
+      PORTAL_CACHE_TTL_MS
+    ),
 };
 
 export const artworkApi = {
@@ -554,11 +590,21 @@ export const artworkApi = {
 };
 
 export const parentApi = {
-  dashboard: () => apiRequest<ParentDashboardData>("/api/parent/dashboard"),
+  dashboard: () =>
+    cachedGet(
+      "parent:dashboard",
+      () => apiRequest<ParentDashboardData>("/api/parent/dashboard"),
+      PORTAL_CACHE_TTL_MS
+    ),
   homeLearning: (childId?: string) => {
     const query = childId ? `?child_id=${encodeURIComponent(childId)}` : "";
-    return apiRequest<ParentHomeLearningTheme[]>(
-      `/api/parent/home-learning${query}`
+    return cachedGet(
+      `parent:home-learning:${childId || "default"}`,
+      () =>
+        apiRequest<ParentHomeLearningTheme[]>(
+          `/api/parent/home-learning${query}`
+        ),
+      PORTAL_CACHE_TTL_MS
     );
   },
   toggleHomeActivity: (
@@ -577,8 +623,13 @@ export const parentApi = {
     if (childId) params.set("child_id", childId);
     if (themeId) params.set("theme_id", themeId);
     const qs = params.toString();
-    return apiRequest<ParentReflection[]>(
-      `/api/parent/reflections${qs ? `?${qs}` : ""}`
+    return cachedGet(
+      `parent:reflections:${childId || "all"}:${themeId || "all"}`,
+      () =>
+        apiRequest<ParentReflection[]>(
+          `/api/parent/reflections${qs ? `?${qs}` : ""}`
+        ),
+      PORTAL_CACHE_TTL_MS
     );
   },
   createReflection: (payload: {
@@ -595,7 +646,11 @@ export const parentApi = {
     }),
   goals: (childId?: string) => {
     const query = childId ? `?child_id=${encodeURIComponent(childId)}` : "";
-    return apiRequest<LearningGoal[]>(`/api/parent/goals${query}`);
+    return cachedGet(
+      `parent:goals:${childId || "all"}`,
+      () => apiRequest<LearningGoal[]>(`/api/parent/goals${query}`),
+      PORTAL_CACHE_TTL_MS
+    );
   },
   createGoal: (payload: {
     child_id: string;
@@ -625,7 +680,12 @@ export const parentApi = {
     apiRequest<void>(`/api/parent/goals/${goalId}`, {
       method: "DELETE",
     }),
-  settings: () => apiRequest<ParentSettings>("/api/parent/settings"),
+  settings: () =>
+    cachedGet(
+      "parent:settings",
+      () => apiRequest<ParentSettings>("/api/parent/settings"),
+      PORTAL_CACHE_TTL_MS
+    ),
   updateSettings: (payload: {
     preferred_language?: "en" | "fil";
     daily_screen_limit_mins?: number;
@@ -635,7 +695,12 @@ export const parentApi = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
-  notifications: () => apiRequest<NotificationList>("/api/parent/notifications"),
+  notifications: () =>
+    cachedGet(
+      "parent:notifications",
+      () => apiRequest<NotificationList>("/api/parent/notifications"),
+      PORTAL_CACHE_TTL_MS
+    ),
   markNotificationRead: (id: string) =>
     apiRequest<NotificationItem>(`/api/parent/notifications/${id}/read`, {
       method: "PATCH",
@@ -646,23 +711,52 @@ export const parentApi = {
     }),
   report: (childId?: string) => {
     const query = childId ? `?child_id=${encodeURIComponent(childId)}` : "";
-    return apiRequest<WeeklyReport>(`/api/parent/reports${query}`);
+    return cachedGet(
+      `parent:report:${childId || "default"}`,
+      () => apiRequest<WeeklyReport>(`/api/parent/reports${query}`),
+      PORTAL_CACHE_TTL_MS
+    );
   },
 };
 
 export const teacherApi = {
-  classes: () => apiRequest<TeacherClass[]>("/api/teacher/classes"),
+  classes: () =>
+    cachedGet(
+      "teacher:classes",
+      () => apiRequest<TeacherClass[]>("/api/teacher/classes"),
+      PORTAL_CACHE_TTL_MS
+    ),
   students: (classId?: string) => {
     const query = classId ? `?class_id=${encodeURIComponent(classId)}` : "";
-    return apiRequest<TeacherStudent[]>(`/api/teacher/students${query}`);
+    return cachedGet(
+      `teacher:students:${classId || "all"}`,
+      () => apiRequest<TeacherStudent[]>(`/api/teacher/students${query}`),
+      PORTAL_CACHE_TTL_MS
+    );
   },
   studentProgress: (childId: string) =>
-    apiRequest<TeacherStudentDetail>(`/api/teacher/students/${childId}/progress`),
+    cachedGet(
+      `teacher:student-progress:${childId}`,
+      () =>
+        apiRequest<TeacherStudentDetail>(
+          `/api/teacher/students/${childId}/progress`
+        ),
+      PORTAL_CACHE_TTL_MS
+    ),
   analytics: (classId?: string) => {
     const query = classId ? `?class_id=${encodeURIComponent(classId)}` : "";
-    return apiRequest<TeacherAnalytics>(`/api/teacher/analytics${query}`);
+    return cachedGet(
+      `teacher:analytics:${classId || "all"}`,
+      () => apiRequest<TeacherAnalytics>(`/api/teacher/analytics${query}`),
+      PORTAL_CACHE_TTL_MS
+    );
   },
-  lessons: () => apiRequest<Lesson[]>("/api/teacher/lessons"),
+  lessons: () =>
+    cachedGet(
+      "teacher:lessons",
+      () => apiRequest<Lesson[]>("/api/teacher/lessons"),
+      PORTAL_CACHE_TTL_MS
+    ),
   createLesson: async (payload: {
     title: string;
     subject_id: string;
@@ -715,7 +809,14 @@ export const teacherApi = {
       body: JSON.stringify(payload),
     }),
   lessonResources: (lessonId: string) =>
-    apiRequest<LessonResource[]>(`/api/teacher/lessons/${lessonId}/resources`),
+    cachedGet(
+      `teacher:lesson-resources:${lessonId}`,
+      () =>
+        apiRequest<LessonResource[]>(
+          `/api/teacher/lessons/${lessonId}/resources`
+        ),
+      PORTAL_CACHE_TTL_MS
+    ),
   uploadLessonResource: (lessonId: string, title: string, file: File) => {
     const fd = new FormData();
     fd.append("title", title);
@@ -725,7 +826,12 @@ export const teacherApi = {
       fd
     );
   },
-  themes: () => apiRequest<Theme[]>("/api/teacher/themes"),
+  themes: () =>
+    cachedGet(
+      "teacher:themes",
+      () => apiRequest<Theme[]>("/api/teacher/themes"),
+      PORTAL_CACHE_TTL_MS
+    ),
   createTheme: async (payload: {
     week_number: number;
     title: string;
@@ -753,7 +859,12 @@ export const teacherApi = {
     invalidateContentCache();
     return res;
   },
-  assignments: () => apiRequest<TeacherAssignment[]>("/api/teacher/assignments"),
+  assignments: () =>
+    cachedGet(
+      "teacher:assignments",
+      () => apiRequest<TeacherAssignment[]>("/api/teacher/assignments"),
+      PORTAL_CACHE_TTL_MS
+    ),
   createAssignment: (payload: {
     title: string;
     class_id?: string | null;
@@ -772,7 +883,14 @@ export const teacherApi = {
     }),
   observations: (childId?: string) => {
     const query = childId ? `?child_id=${encodeURIComponent(childId)}` : "";
-    return apiRequest<TeacherObservation[]>(`/api/teacher/observations${query}`);
+    return cachedGet(
+      `teacher:observations:${childId || "all"}`,
+      () =>
+        apiRequest<TeacherObservation[]>(
+          `/api/teacher/observations${query}`
+        ),
+      PORTAL_CACHE_TTL_MS
+    );
   },
   createObservation: (payload: {
     child_id: string;
@@ -786,7 +904,12 @@ export const teacherApi = {
     }),
   feedback: (childId?: string) => {
     const query = childId ? `?child_id=${encodeURIComponent(childId)}` : "";
-    return apiRequest<TeacherFeedbackItem[]>(`/api/teacher/feedback${query}`);
+    return cachedGet(
+      `teacher:feedback:${childId || "all"}`,
+      () =>
+        apiRequest<TeacherFeedbackItem[]>(`/api/teacher/feedback${query}`),
+      PORTAL_CACHE_TTL_MS
+    );
   },
   createFeedback: (payload: { child_id: string; message: string }) =>
     apiRequest<TeacherFeedbackItem>("/api/teacher/feedback", {
@@ -795,9 +918,18 @@ export const teacherApi = {
     }),
   reflections: (childId?: string) => {
     const query = childId ? `?child_id=${encodeURIComponent(childId)}` : "";
-    return apiRequest<ParentReflection[]>(`/api/teacher/reflections${query}`);
+    return cachedGet(
+      `teacher:reflections:${childId || "all"}`,
+      () => apiRequest<ParentReflection[]>(`/api/teacher/reflections${query}`),
+      PORTAL_CACHE_TTL_MS
+    );
   },
-  announcements: () => apiRequest<Announcement[]>("/api/teacher/announcements"),
+  announcements: () =>
+    cachedGet(
+      "teacher:announcements",
+      () => apiRequest<Announcement[]>("/api/teacher/announcements"),
+      PORTAL_CACHE_TTL_MS
+    ),
   createAnnouncement: (payload: {
     title: string;
     body: string;
@@ -826,7 +958,11 @@ export const adminApi = {
       }
     }
     const qs = query.toString();
-    return apiRequest<AdminUser[]>(`/api/admin/users${qs ? `?${qs}` : ""}`);
+    return cachedGet(
+      `admin:users:${qs || "all"}`,
+      () => apiRequest<AdminUser[]>(`/api/admin/users${qs ? `?${qs}` : ""}`),
+      PORTAL_CACHE_TTL_MS
+    );
   },
   createUser: (payload: {
     email: string;
@@ -852,8 +988,18 @@ export const adminApi = {
       method: "PATCH",
       body: JSON.stringify({ is_active }),
     }),
-  children: () => apiRequest<AdminChildSummary[]>("/api/admin/children"),
-  classes: () => apiRequest<AdminClass[]>("/api/admin/classes"),
+  children: () =>
+    cachedGet(
+      "admin:children",
+      () => apiRequest<AdminChildSummary[]>("/api/admin/children"),
+      PORTAL_CACHE_TTL_MS
+    ),
+  classes: () =>
+    cachedGet(
+      "admin:classes",
+      () => apiRequest<AdminClass[]>("/api/admin/classes"),
+      PORTAL_CACHE_TTL_MS
+    ),
   createClass: (payload: {
     name: string;
     age_group: "4-5" | "5-6" | "4-6";
@@ -900,7 +1046,12 @@ export const adminApi = {
     apiRequest<void>(`/api/admin/classes/${classId}/enrollments/${childId}`, {
       method: "DELETE",
     }),
-  subjects: () => apiRequest<AdminSubject[]>("/api/admin/subjects"),
+  subjects: () =>
+    cachedGet(
+      "admin:subjects",
+      () => apiRequest<AdminSubject[]>("/api/admin/subjects"),
+      PORTAL_CACHE_TTL_MS
+    ),
   createSubject: async (payload: {
     name: string;
     description: string;
@@ -934,7 +1085,12 @@ export const adminApi = {
     invalidateContentCache();
     return res;
   },
-  content: () => apiRequest<AdminContentSummary>("/api/admin/content"),
+  content: () =>
+    cachedGet(
+      "admin:content",
+      () => apiRequest<AdminContentSummary>("/api/admin/content"),
+      PORTAL_CACHE_TTL_MS
+    ),
   updateLessonStatus: async (
     lessonId: string,
     status: "draft" | "published" | "archived"
@@ -957,8 +1113,18 @@ export const adminApi = {
     invalidateContentCache();
     return res;
   },
-  analytics: () => apiRequest<AdminAnalytics>("/api/admin/analytics"),
-  storage: () => apiRequest<AdminStorageOverview>("/api/admin/storage"),
+  analytics: () =>
+    cachedGet(
+      "admin:analytics",
+      () => apiRequest<AdminAnalytics>("/api/admin/analytics"),
+      PORTAL_CACHE_TTL_MS
+    ),
+  storage: () =>
+    cachedGet(
+      "admin:storage",
+      () => apiRequest<AdminStorageOverview>("/api/admin/storage"),
+      PORTAL_CACHE_TTL_MS
+    ),
   deleteStorageItem: (
     itemType: "lesson_resource" | "child_artwork",
     itemId: string
@@ -966,7 +1132,12 @@ export const adminApi = {
     apiRequest<void>(`/api/admin/storage/${itemType}/${itemId}`, {
       method: "DELETE",
     }),
-  settings: () => apiRequest<PlatformSetting[]>("/api/admin/settings"),
+  settings: () =>
+    cachedGet(
+      "admin:settings",
+      () => apiRequest<PlatformSetting[]>("/api/admin/settings"),
+      PORTAL_CACHE_TTL_MS
+    ),
   upsertSetting: (
     key: string,
     payload: { value_json: Record<string, unknown>; description?: string }
@@ -975,7 +1146,12 @@ export const adminApi = {
       method: "PUT",
       body: JSON.stringify(payload),
     }),
-  systemHealth: () => apiRequest<SystemHealth>("/api/admin/system-health"),
+  systemHealth: () =>
+    cachedGet(
+      "admin:system-health",
+      () => apiRequest<SystemHealth>("/api/admin/system-health"),
+      PORTAL_CACHE_TTL_MS
+    ),
   auditLogs: (params?: {
     limit?: number;
     action?: string;
@@ -988,6 +1164,103 @@ export const adminApi = {
       query.set("resource_type", params.resource_type.trim());
     }
     const qs = query.toString();
-    return apiRequest<AuditLogItem[]>(`/api/admin/audit-logs${qs ? `?${qs}` : ""}`);
+    return cachedGet(
+      `admin:audit-logs:${qs || "default"}`,
+      () =>
+        apiRequest<AuditLogItem[]>(
+          `/api/admin/audit-logs${qs ? `?${qs}` : ""}`
+        ),
+      PORTAL_CACHE_TTL_MS
+    );
   },
 };
+
+export function prefetchPortalData(
+  href: string,
+  activeChildId?: string | null
+): void {
+  if (typeof window === "undefined" || process.env.NODE_ENV === "test") {
+    return;
+  }
+  if (!getStoredTokens().accessToken) {
+    return;
+  }
+  const cleanPath = href.split("?")[0];
+  const cid = activeChildId || undefined;
+  switch (cleanPath) {
+    case "/parent":
+      void parentApi.dashboard().catch(() => {});
+      void parentApi.notifications().catch(() => {});
+      if (cid) {
+        void parentApi.homeLearning(cid).catch(() => {});
+        void parentApi.report(cid).catch(() => {});
+      }
+      break;
+    case "/parent/home-learning":
+      void parentApi.homeLearning(cid).catch(() => {});
+      break;
+    case "/parent/reports":
+      void parentApi.report(cid).catch(() => {});
+      break;
+    case "/parent/settings":
+      void parentApi.goals(cid).catch(() => {});
+      void parentApi.settings().catch(() => {});
+      break;
+    case "/kids":
+      void contentApi.subjects().catch(() => {});
+      void contentApi.themes().catch(() => {});
+      void contentApi.lessons().catch(() => {});
+      void contentApi.games().catch(() => {});
+      if (cid) {
+        void progressApi.summary(cid).catch(() => {});
+      }
+      break;
+    case "/teacher":
+      void teacherApi.classes().catch(() => {});
+      void teacherApi.students().catch(() => {});
+      void contentApi.themes().catch(() => {});
+      void teacherApi.reflections().catch(() => {});
+      break;
+    case "/teacher/lessons":
+      void teacherApi.lessons().catch(() => {});
+      void teacherApi.themes().catch(() => {});
+      void contentApi.subjects().catch(() => {});
+      break;
+    case "/teacher/assignments":
+      void teacherApi.assignments().catch(() => {});
+      void teacherApi.classes().catch(() => {});
+      void teacherApi.students().catch(() => {});
+      void contentApi.lessons().catch(() => {});
+      void contentApi.games().catch(() => {});
+      break;
+    case "/teacher/analytics":
+      void teacherApi.analytics().catch(() => {});
+      void teacherApi.classes().catch(() => {});
+      break;
+    case "/admin":
+      void adminApi.systemHealth().catch(() => {});
+      void adminApi.analytics().catch(() => {});
+      void adminApi.auditLogs({ limit: 8 }).catch(() => {});
+      break;
+    case "/admin/users":
+      void adminApi.users().catch(() => {});
+      break;
+    case "/admin/classes":
+      void adminApi.classes().catch(() => {});
+      void adminApi.children().catch(() => {});
+      void adminApi.users({ is_active: true }).catch(() => {});
+      break;
+    case "/admin/content":
+      void adminApi.subjects().catch(() => {});
+      void adminApi.content().catch(() => {});
+      void adminApi.storage().catch(() => {});
+      break;
+    case "/admin/settings":
+      void adminApi.settings().catch(() => {});
+      void adminApi.systemHealth().catch(() => {});
+      void adminApi.auditLogs({ limit: 30 }).catch(() => {});
+      break;
+    default:
+      break;
+  }
+}

@@ -31,12 +31,20 @@ jest.mock("@/hooks/useAuth", () => ({
 }));
 
 describe("Responsive layout, adaptive navigation, and viewport-safe dialogs", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
   it("supports PortalShell mobile drawer toggle, Escape close, sidebar width toggle, and quick nav", () => {
-    render(
+    const { container } = render(
       <PortalShell title="Parent Portal" subtitle="Responsive smoke check">
         <div>Portal body</div>
       </PortalShell>
     );
+
+    const aside = screen.getByLabelText("Portal Sidebar");
+    expect(aside).toHaveClass("md:overflow-x-hidden");
+    expect(aside.querySelector(".left-full")).toBeNull();
 
     // Desktop & Tablet sidebar collapse toggle
     const collapseBtn = screen.getByRole("button", {
@@ -45,8 +53,19 @@ describe("Responsive layout, adaptive navigation, and viewport-safe dialogs", ()
     expect(collapseBtn).toHaveAttribute("aria-expanded", "true");
     fireEvent.click(collapseBtn);
     expect(collapseBtn).toHaveAttribute("aria-expanded", "false");
+    const compactAvatar = screen.getByTestId("sidebar-compact-avatar");
+    expect(compactAvatar).toHaveClass("flex");
+    expect(compactAvatar).not.toHaveClass("block");
+
     fireEvent.click(collapseBtn);
     expect(collapseBtn).toHaveAttribute("aria-expanded", "true");
+
+    // Clicking another route triggers immediate active & progress bar feedback
+    const reportsLinks = screen.getAllByRole("link", {
+      name: /Weekly Reports/i,
+    });
+    fireEvent.click(reportsLinks[0]);
+    expect(container.querySelector(".animate-pulse")).toBeInTheDocument();
 
     // Mobile hamburger opens slide-over drawer and Escape closes it
     const menuBtn = screen.getByRole("button", {
@@ -55,9 +74,11 @@ describe("Responsive layout, adaptive navigation, and viewport-safe dialogs", ()
     expect(menuBtn).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(menuBtn);
     expect(menuBtn).toHaveAttribute("aria-expanded", "true");
-    expect(
-      screen.getByRole("dialog", { name: "Portal Navigation Drawer" })
-    ).toBeInTheDocument();
+    const drawer = screen.getByRole("dialog", {
+      name: "Portal Navigation Drawer",
+    });
+    expect(drawer).toBeInTheDocument();
+    expect(drawer).toHaveClass("animate-slide-in-left");
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(

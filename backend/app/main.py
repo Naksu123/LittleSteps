@@ -3,8 +3,8 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 
 import app.models  # noqa: F401
 from app.api.routes import admin, artworks, auth, children, content, health, parent, progress, teacher
@@ -26,6 +26,17 @@ def _ensure_serverless_db_ready() -> None:
         return
     if not (settings.SEED_ON_START or os.getenv("VERCEL")):
         return
+
+    try:
+        with SessionLocal() as session:
+            ready = session.execute(
+                text("SELECT EXISTS(SELECT 1 FROM roles) AND EXISTS(SELECT 1 FROM subjects)")
+            ).scalar()
+            if ready:
+                return
+    except (OperationalError, ProgrammingError):
+        pass
+
     try:
         Base.metadata.create_all(bind=engine, checkfirst=True)
     except IntegrityError:

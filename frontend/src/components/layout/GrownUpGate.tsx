@@ -63,7 +63,9 @@ export function GrownUpGate({ exitHref = "/parent" }: GrownUpGateProps) {
         className="rounded-2xl min-h-11 px-3 sm:px-4 text-xs sm:text-sm shrink-0"
       >
         <Lock className="h-4 w-4 shrink-0" />
-        <span>Grown-Up Exit</span>
+        <span>
+          <span className="hidden min-[380px]:inline">Grown-Up </span>Exit
+        </span>
       </Button>
 
       <Dialog

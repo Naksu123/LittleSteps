@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import re
 import uuid
@@ -214,27 +215,32 @@ def list_teacher_classes(
             ).all()
         )
 
-    results: list[TeacherClassOut] = []
-    for cls in classes:
-        student_count = (
-            db.scalar(
-                select(func.count(ClassEnrollment.id)).where(
-                    ClassEnrollment.class_id == cls.id, ClassEnrollment.status == "active"
+    class_ids = [cls.id for cls in classes]
+    counts_by_class: dict[str, int] = {}
+    if class_ids:
+        counts_by_class = {
+            cid: cnt
+            for cid, cnt in db.execute(
+                select(ClassEnrollment.class_id, func.count(ClassEnrollment.id))
+                .where(
+                    ClassEnrollment.class_id.in_(class_ids),
+                    ClassEnrollment.status == "active",
                 )
-            )
-            or 0
+                .group_by(ClassEnrollment.class_id)
+            ).all()
+        }
+
+    return [
+        TeacherClassOut(
+            id=cls.id,
+            name=cls.name,
+            age_group=cls.age_group,
+            academic_year=cls.academic_year,
+            room_label=cls.room_label,
+            student_count=counts_by_class.get(cls.id, 0),
         )
-        results.append(
-            TeacherClassOut(
-                id=cls.id,
-                name=cls.name,
-                age_group=cls.age_group,
-                academic_year=cls.academic_year,
-                room_label=cls.room_label,
-                student_count=student_count,
-            )
-        )
-    return results
+        for cls in classes
+    ]
 
 
 @router.get("/students", response_model=list[TeacherStudentOut])
@@ -260,29 +266,34 @@ def list_teacher_students(
         ).where(TeacherClassAssignment.teacher_user_id == current_user.id)
 
     rows = list(db.execute(stmt.order_by(Child.display_name.asc())).all())
-    students: list[TeacherStudentOut] = []
-    for child, class_name in rows:
-        done = (
-            db.scalar(
-                select(func.count(LessonProgress.id)).where(
-                    LessonProgress.child_id == child.id, LessonProgress.status == "completed"
+    child_ids = list({child.id for child, _ in rows})
+    done_by_child: dict[str, int] = {}
+    if child_ids:
+        done_by_child = {
+            cid: cnt
+            for cid, cnt in db.execute(
+                select(LessonProgress.child_id, func.count(LessonProgress.id))
+                .where(
+                    LessonProgress.child_id.in_(child_ids),
+                    LessonProgress.status == "completed",
                 )
-            )
-            or 0
+                .group_by(LessonProgress.child_id)
+            ).all()
+        }
+
+    return [
+        TeacherStudentOut(
+            id=child.id,
+            display_name=child.display_name,
+            age_group=child.age_group,
+            avatar_key=child.avatar_key,
+            class_name=class_name,
+            total_stars=child.total_stars,
+            streak_days=child.streak_days,
+            lessons_completed=done_by_child.get(child.id, 0),
         )
-        students.append(
-            TeacherStudentOut(
-                id=child.id,
-                display_name=child.display_name,
-                age_group=child.age_group,
-                avatar_key=child.avatar_key,
-                class_name=class_name,
-                total_stars=child.total_stars,
-                streak_days=child.streak_days,
-                lessons_completed=done,
-            )
-        )
-    return students
+        for child, class_name in rows
+    ]
 
 
 @router.get("/students/{child_id}/progress", response_model=TeacherStudentDetailOut)
@@ -536,20 +547,28 @@ def get_teacher_analytics(
             select(Subject).where(Subject.is_active.is_(True)).order_by(Subject.sort_order.asc())
         ).all()
     )
+    skill_rows = (
+        list(
+            db.scalars(
+                select(SkillProgress).where(SkillProgress.child_id.in_(unique_child_ids))
+            ).all()
+        )
+        if unique_child_ids
+        else []
+    )
+    mastery_by_subject: dict[str, list[int]] = defaultdict(list)
+    lowest_by_child: dict[str, SkillProgress] = {}
+    for sp in skill_rows:
+        mastery_by_subject[sp.subject_id].append(sp.mastery_pct)
+        if sp.mastery_pct < 75:
+            prev_lowest = lowest_by_child.get(sp.child_id)
+            if prev_lowest is None or sp.mastery_pct < prev_lowest.mastery_pct:
+                lowest_by_child[sp.child_id] = sp
+
     subject_averages: list[SubjectMasteryPoint] = []
     for subj in subjects:
-        avg_val = (
-            db.scalar(
-                select(func.avg(SkillProgress.mastery_pct)).where(
-                    SkillProgress.subject_id == subj.id,
-                    SkillProgress.child_id.in_(unique_child_ids)
-                    if unique_child_ids
-                    else SkillProgress.child_id == "__none__",
-                )
-            )
-            if unique_child_ids
-            else None
-        )
+        vals = mastery_by_subject.get(subj.id, [])
+        avg_val = (sum(vals) / len(vals)) if vals else None
         subject_averages.append(
             SubjectMasteryPoint(
                 subject_name=subj.name,
@@ -564,12 +583,7 @@ def get_teacher_analytics(
         if child.id in seen_guidance:
             continue
         done_cnt = completed_lessons_by_child.get(child.id, 0)
-        lowest = db.scalar(
-            select(SkillProgress)
-            .where(SkillProgress.child_id == child.id, SkillProgress.mastery_pct < 75)
-            .order_by(SkillProgress.mastery_pct.asc())
-            .limit(1)
-        )
+        lowest = lowest_by_child.get(child.id)
         if done_cnt == 0:
             seen_guidance.add(child.id)
             guidance_items.append(
@@ -954,11 +968,88 @@ def list_teacher_assignments(
         stmt = stmt.where(or_(*conds))
 
     rows = list(db.scalars(stmt.order_by(Assignment.created_at.desc())).all())
+    if not rows:
+        return []
+
+    ref_class_ids = list({a.class_id for a in rows if a.class_id})
+    ref_child_ids = list({a.child_id for a in rows if a.child_id})
+    ref_lesson_ids = list({a.lesson_id for a in rows if a.lesson_id})
+    ref_game_ids = list({a.game_id for a in rows if a.game_id})
+
+    classes_by_id = (
+        {
+            c.id: c
+            for c in db.scalars(select(SchoolClass).where(SchoolClass.id.in_(ref_class_ids))).all()
+        }
+        if ref_class_ids
+        else {}
+    )
+    enrolled_by_class: dict[str, list[str]] = defaultdict(list)
+    if ref_class_ids:
+        for cid_class, cid_child in db.execute(
+            select(ClassEnrollment.class_id, ClassEnrollment.child_id).where(
+                ClassEnrollment.class_id.in_(ref_class_ids),
+                ClassEnrollment.status == "active",
+            )
+        ).all():
+            enrolled_by_class[cid_class].append(cid_child)
+
+    children_by_id = (
+        {
+            c.id: c
+            for c in db.scalars(select(Child).where(Child.id.in_(ref_child_ids))).all()
+        }
+        if ref_child_ids
+        else {}
+    )
+
+    all_target_child_ids = list(
+        set(ref_child_ids)
+        | {cid for cid_list in enrolled_by_class.values() for cid in cid_list}
+    )
+
+    completed_lessons: set[tuple[str, str]] = set()
+    if all_target_child_ids and ref_lesson_ids:
+        completed_lessons = {
+            (r[0], r[1])
+            for r in db.execute(
+                select(LessonProgress.child_id, LessonProgress.lesson_id).where(
+                    LessonProgress.child_id.in_(all_target_child_ids),
+                    LessonProgress.lesson_id.in_(ref_lesson_ids),
+                    LessonProgress.status == "completed",
+                )
+            ).all()
+        }
+
+    completed_games: set[tuple[str, str]] = set()
+    if all_target_child_ids and ref_game_ids:
+        completed_games = {
+            (r[0], r[1])
+            for r in db.execute(
+                select(ActivityAttempt.child_id, ActivityAttempt.game_id).where(
+                    ActivityAttempt.child_id.in_(all_target_child_ids),
+                    ActivityAttempt.game_id.in_(ref_game_ids),
+                    ActivityAttempt.completed.is_(True),
+                )
+            ).all()
+        }
+
     out: list[TeacherAssignmentOut] = []
     for a in rows:
-        cls = db.get(SchoolClass, a.class_id) if a.class_id else None
-        child = db.get(Child, a.child_id) if a.child_id else None
-        done, total = _compute_assignment_counts(db, a)
+        cls = classes_by_id.get(a.class_id) if a.class_id else None
+        child = children_by_id.get(a.child_id) if a.child_id else None
+        target_cids = (
+            [a.child_id]
+            if a.child_id
+            else enrolled_by_class.get(a.class_id, []) if a.class_id else []
+        )
+        done = sum(
+            1
+            for cid in target_cids
+            if (a.lesson_id and (cid, a.lesson_id) in completed_lessons)
+            or (a.game_id and (cid, a.game_id) in completed_games)
+        )
+        total = len(target_cids)
         out.append(
             TeacherAssignmentOut(
                 id=a.id,

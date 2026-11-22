@@ -133,16 +133,16 @@ def _notify_child_teachers(
         )
 
 
-def _build_weekly_activity(db: Session, child_id: str) -> list[WeeklyActivityPoint]:
+def _build_weekly_activity_from_rows(
+    progress_rows: list[LessonProgress],
+    attempt_rows: list[ActivityAttempt],
+) -> list[WeeklyActivityPoint]:
     now = datetime.now(timezone.utc)
     days_order = [(now - timedelta(days=offset)).strftime("%a") for offset in range(6, -1, -1)]
     minutes_by_day: dict[str, int] = defaultdict(int)
     lessons_by_day: dict[str, int] = defaultdict(int)
 
     cutoff = now - timedelta(days=7)
-    progress_rows = list(
-        db.scalars(select(LessonProgress).where(LessonProgress.child_id == child_id)).all()
-    )
     for row in progress_rows:
         ts = _ensure_utc(row.completed_at or row.updated_at or row.created_at)
         if ts >= cutoff:
@@ -151,9 +151,6 @@ def _build_weekly_activity(db: Session, child_id: str) -> list[WeeklyActivityPoi
             if row.status == "completed":
                 lessons_by_day[day_key] += 1
 
-    attempt_rows = list(
-        db.scalars(select(ActivityAttempt).where(ActivityAttempt.child_id == child_id)).all()
-    )
     for row in attempt_rows:
         ts = _ensure_utc(row.created_at)
         if ts >= cutoff:
@@ -168,6 +165,16 @@ def _build_weekly_activity(db: Session, child_id: str) -> list[WeeklyActivityPoi
         )
         for day_label in days_order
     ]
+
+
+def _build_weekly_activity(db: Session, child_id: str) -> list[WeeklyActivityPoint]:
+    progress_rows = list(
+        db.scalars(select(LessonProgress).where(LessonProgress.child_id == child_id)).all()
+    )
+    attempt_rows = list(
+        db.scalars(select(ActivityAttempt).where(ActivityAttempt.child_id == child_id)).all()
+    )
+    return _build_weekly_activity_from_rows(progress_rows, attempt_rows)
 
 
 @router.get("/dashboard", response_model=ParentDashboardOut)
@@ -190,47 +197,47 @@ def get_parent_dashboard(
         db.scalar(select(func.count(Lesson.id)).where(Lesson.status == "published")) or 0
     )
 
+    child_ids = [c.id for c in children]
+    lp_by_child: dict[str, list[LessonProgress]] = defaultdict(list)
+    att_by_child: dict[str, list[ActivityAttempt]] = defaultdict(list)
+    rewards_by_child: dict[str, list[ChildReward]] = defaultdict(list)
+    skills_by_child: dict[str, list[tuple[SkillProgress, str]]] = defaultdict(list)
+
+    if child_ids:
+        for lp in db.scalars(
+            select(LessonProgress).where(LessonProgress.child_id.in_(child_ids))
+        ).all():
+            lp_by_child[lp.child_id].append(lp)
+
+        for att in db.scalars(
+            select(ActivityAttempt).where(ActivityAttempt.child_id.in_(child_ids))
+        ).all():
+            att_by_child[att.child_id].append(att)
+
+        for reward in db.scalars(
+            select(ChildReward)
+            .where(ChildReward.child_id.in_(child_ids))
+            .order_by(ChildReward.awarded_at.desc())
+        ).all():
+            if len(rewards_by_child[reward.child_id]) < 5:
+                rewards_by_child[reward.child_id].append(reward)
+
+        for sp, subj_name in db.execute(
+            select(SkillProgress, Subject.name)
+            .join(Subject, Subject.id == SkillProgress.subject_id)
+            .where(SkillProgress.child_id.in_(child_ids))
+        ).all():
+            skills_by_child[sp.child_id].append((sp, subj_name))
+
     child_items: list[ParentChildDashboardItem] = []
     for child in children:
-        lessons_done = (
-            db.scalar(
-                select(func.count(LessonProgress.id)).where(
-                    LessonProgress.child_id == child.id, LessonProgress.status == "completed"
-                )
-            )
-            or 0
-        )
-        lesson_secs = (
-            db.scalar(
-                select(func.coalesce(func.sum(LessonProgress.time_spent_seconds), 0)).where(
-                    LessonProgress.child_id == child.id
-                )
-            )
-            or 0
-        )
-        game_secs = (
-            db.scalar(
-                select(func.coalesce(func.sum(ActivityAttempt.duration_seconds), 0)).where(
-                    ActivityAttempt.child_id == child.id
-                )
-            )
-            or 0
-        )
-        rewards = list(
-            db.scalars(
-                select(ChildReward)
-                .where(ChildReward.child_id == child.id)
-                .order_by(ChildReward.awarded_at.desc())
-                .limit(5)
-            ).all()
-        )
-        skills_rows = list(
-            db.execute(
-                select(SkillProgress, Subject.name)
-                .join(Subject, Subject.id == SkillProgress.subject_id)
-                .where(SkillProgress.child_id == child.id)
-            ).all()
-        )
+        c_lps = lp_by_child.get(child.id, [])
+        c_atts = att_by_child.get(child.id, [])
+        lessons_done = sum(1 for lp in c_lps if lp.status == "completed")
+        lesson_secs = sum(lp.time_spent_seconds or 0 for lp in c_lps)
+        game_secs = sum(att.duration_seconds or 0 for att in c_atts)
+        rewards = rewards_by_child.get(child.id, [])
+        skills_rows = skills_by_child.get(child.id, [])
 
         child_items.append(
             ParentChildDashboardItem(
@@ -250,7 +257,7 @@ def get_parent_dashboard(
                     )
                     for sp, subj_name in skills_rows
                 ],
-                weekly_activity=_build_weekly_activity(db, child.id),
+                weekly_activity=_build_weekly_activity_from_rows(c_lps, c_atts),
             )
         )
 
@@ -346,13 +353,18 @@ def _build_home_learning_item(
     theme: Theme,
     completed_ids: set[str],
     reflections_by_theme: dict[str, list[ParentReflection]],
+    activities: Optional[list[HomeActivity]] = None,
 ) -> ParentHomeLearningThemeOut:
-    acts = list(
-        db.scalars(
-            select(HomeActivity)
-            .where(HomeActivity.theme_id == theme.id)
-            .order_by(HomeActivity.sort_order.asc())
-        ).all()
+    acts = (
+        activities
+        if activities is not None
+        else list(
+            db.scalars(
+                select(HomeActivity)
+                .where(HomeActivity.theme_id == theme.id)
+                .order_by(HomeActivity.sort_order.asc())
+            ).all()
+        )
     )
     return ParentHomeLearningThemeOut(
         theme=ThemeOut.model_validate(theme),
@@ -438,8 +450,24 @@ def list_home_learning(
             .order_by(Theme.week_number.asc())
         ).all()
     )
+    theme_ids = [t.id for t in themes]
+    acts_by_theme: dict[str, list[HomeActivity]] = defaultdict(list)
+    if theme_ids:
+        for ha in db.scalars(
+            select(HomeActivity)
+            .where(HomeActivity.theme_id.in_(theme_ids))
+            .order_by(HomeActivity.sort_order.asc())
+        ).all():
+            acts_by_theme[ha.theme_id].append(ha)
+
     return [
-        _build_home_learning_item(db, theme, completed_ids, reflections_by_theme)
+        _build_home_learning_item(
+            db,
+            theme,
+            completed_ids,
+            reflections_by_theme,
+            activities=acts_by_theme.get(theme.id, []),
+        )
         for theme in themes
     ]
 

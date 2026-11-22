@@ -25,9 +25,12 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { prefetchPortalData } from "@/services/api";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+const SIDEBAR_MODE_KEY = "littlesteps_sidebar_mode";
 
 interface PortalShellProps {
   title: string;
@@ -38,15 +41,40 @@ interface PortalShellProps {
 export function PortalShell({ title, subtitle, children }: PortalShellProps) {
   const pathname = usePathname() || "";
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, activeChildId, logout } = useAuth();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [sidebarMode, setSidebarMode] = useState<
     "auto" | "expanded" | "collapsed"
   >("auto");
+  const [isDesktopViewport, setIsDesktopViewport] = useState(true);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   useEffect(() => {
     setMobileDrawerOpen(false);
+    setPendingHref(null);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!pendingHref) return;
+    const timer = window.setTimeout(() => setPendingHref(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [pendingHref]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = window.sessionStorage.getItem(SIDEBAR_MODE_KEY);
+      if (saved === "expanded" || saved === "collapsed") {
+        setSidebarMode(saved);
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    const syncViewport = () => setIsDesktopViewport(window.innerWidth >= 1024);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   useEffect(() => {
     if (!mobileDrawerOpen) return;
@@ -175,15 +203,36 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
       : []),
   ];
 
+  const isSidebarExpanded =
+    sidebarMode === "expanded" ||
+    (sidebarMode === "auto" && isDesktopViewport);
+
   function handleToggleSidebarWidth() {
     setSidebarMode((prev) => {
-      if (prev === "auto") {
-        const isDesktop =
-          typeof window !== "undefined" ? window.innerWidth >= 1024 : true;
-        return isDesktop ? "collapsed" : "expanded";
+      const currentlyExpanded =
+        prev === "expanded" || (prev === "auto" && isDesktopViewport);
+      const next = currentlyExpanded ? "collapsed" : "expanded";
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.setItem(SIDEBAR_MODE_KEY, next);
+        } catch {
+          // Ignore storage errors
+        }
       }
-      return prev === "expanded" ? "collapsed" : "expanded";
+      return next;
     });
+  }
+
+  function handleNavIntent(href: string) {
+    router.prefetch?.(href);
+    prefetchPortalData(href, activeChildId ?? null);
+  }
+
+  function handleNavClick(href: string) {
+    setMobileDrawerOpen(false);
+    if (href !== pathname) {
+      setPendingHref(href);
+    }
   }
 
   async function handleLogout() {
@@ -214,12 +263,12 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
         ? "justify-start px-4"
         : "justify-center lg:justify-start px-2 lg:px-4";
 
-  const compactOnlyClass =
+  const compactFlexClass =
     sidebarMode === "collapsed"
-      ? "block"
+      ? "flex"
       : sidebarMode === "expanded"
         ? "hidden"
-        : "block lg:hidden";
+        : "flex lg:hidden";
 
   const expandedOnlyClass =
     sidebarMode === "collapsed"
@@ -233,11 +282,18 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
 
   return (
     <div className="min-h-dvh bg-[#FFF9F0] flex flex-col md:flex-row">
+      {pendingHref && (
+        <div
+          aria-hidden="true"
+          className="fixed inset-x-0 top-0 z-50 h-1 bg-gradient-to-r from-[#78C8F5] via-[#9BE7C4] to-[#FFE58A] animate-pulse print:hidden"
+        />
+      )}
+
       {/* Tablet & Desktop Adaptive Sidebar */}
       <aside
         aria-label="Portal Sidebar"
         className={cn(
-          "hidden md:flex md:flex-col md:sticky md:top-0 md:h-dvh md:shrink-0 md:overflow-y-auto md:border-r md:border-[#24334D]/8 bg-white justify-between transition-[width] duration-200 print:hidden",
+          "hidden md:flex md:flex-col md:sticky md:top-0 md:h-dvh md:shrink-0 md:overflow-y-auto md:overflow-x-hidden md:border-r md:border-[#24334D]/8 bg-white justify-between transition-[width] duration-200 print:hidden",
           asideWidthClass
         )}
       >
@@ -257,10 +313,10 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
                 size="xs"
                 className={cn(
                   sidebarMode === "collapsed"
-                    ? "max-w-[54px] px-1.5"
+                    ? "max-w-[56px] px-1 py-1"
                     : sidebarMode === "expanded"
-                      ? ""
-                      : "max-w-[54px] px-1.5 lg:max-w-none lg:px-2"
+                      ? "max-w-[152px]"
+                      : "max-w-[56px] px-1 py-1 lg:max-w-[152px] lg:px-2"
                 )}
               />
             </Link>
@@ -268,12 +324,8 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
               type="button"
               onClick={handleToggleSidebarWidth}
               aria-label="Toggle sidebar width"
-              aria-expanded={sidebarMode !== "collapsed"}
-              title={
-                sidebarMode === "collapsed"
-                  ? "Expand sidebar"
-                  : "Collapse sidebar"
-              }
+              aria-expanded={isSidebarExpanded}
+              title={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[#24334D]/65 hover:bg-[#FFF9F0] hover:text-[#24334D] transition-colors cursor-pointer"
             >
               {sidebarMode === "collapsed" ? (
@@ -292,14 +344,19 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
           <nav className="space-y-1.5" aria-label="Portal Navigation">
             {uniqueNav.map((item) => {
               const Icon = item.icon;
-              const active = pathname === item.href;
+              const active = pendingHref
+                ? pendingHref === item.href
+                : pathname === item.href;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   title={item.label}
+                  onMouseEnter={() => handleNavIntent(item.href)}
+                  onFocus={() => handleNavIntent(item.href)}
+                  onClick={() => handleNavClick(item.href)}
                   className={cn(
-                    "group relative flex items-center gap-3 rounded-2xl min-h-11 py-2.5 text-sm font-bold transition-colors",
+                    "group flex items-center gap-3 rounded-2xl min-h-11 py-2.5 text-sm font-bold transition-colors",
                     itemAlignClass,
                     active
                       ? "bg-[#DCF2FD] text-[#175B82]"
@@ -308,14 +365,6 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
                 >
                   <Icon className="h-5 w-5 shrink-0" />
                   <span className={labelVisClass}>{item.label}</span>
-                  <span
-                    className={cn(
-                      "pointer-events-none absolute left-full ml-2 z-40 whitespace-nowrap rounded-xl bg-[#24334D] px-2.5 py-1 text-xs font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100",
-                      compactOnlyClass
-                    )}
-                  >
-                    {item.label}
-                  </span>
                 </Link>
               );
             })}
@@ -338,8 +387,11 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
                     key={item.href}
                     href={item.href}
                     title={item.label}
+                    onMouseEnter={() => handleNavIntent(item.href)}
+                    onFocus={() => handleNavIntent(item.href)}
+                    onClick={() => handleNavClick(item.href)}
                     className={cn(
-                      "group relative flex items-center gap-3 rounded-2xl min-h-10 py-2 text-xs font-bold text-[#24334D]/70 hover:bg-[#FFF9F0]",
+                      "group flex items-center gap-3 rounded-2xl min-h-10 py-2 text-xs font-bold text-[#24334D]/70 hover:bg-[#FFF9F0]",
                       itemAlignClass
                     )}
                   >
@@ -368,9 +420,10 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
           </div>
 
           <div
+            data-testid="sidebar-compact-avatar"
             className={cn(
-              "mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#EDE7FE] font-display text-sm font-bold text-[#4C328B]",
-              compactOnlyClass
+              "mx-auto h-10 w-10 items-center justify-center rounded-full bg-[#EDE7FE] font-display text-sm font-bold text-[#4C328B]",
+              compactFlexClass
             )}
             title={`${user?.full_name || "Account"} (${user?.email || ""})`}
           >
@@ -422,7 +475,7 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
       {/* Mobile Slide-Over Drawer */}
       {mobileDrawerOpen && (
         <div
-          className="md:hidden fixed inset-0 z-50 flex bg-[#24334D]/45 backdrop-blur-xs print:hidden"
+          className="md:hidden fixed inset-0 z-50 flex bg-[#24334D]/45 backdrop-blur-xs animate-fade-in print:hidden"
           onClick={(e) => {
             if (e.target === e.currentTarget) setMobileDrawerOpen(false);
           }}
@@ -432,7 +485,7 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
             role="dialog"
             aria-modal="true"
             aria-label="Portal Navigation Drawer"
-            className="w-[min(86vw,20rem)] h-dvh bg-white shadow-2xl flex flex-col justify-between p-4 overflow-y-auto overscroll-contain"
+            className="w-[min(86vw,20rem)] h-dvh bg-white shadow-2xl flex flex-col justify-between gap-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain animate-slide-in-left"
           >
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#24334D]/8">
@@ -472,12 +525,16 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
               <nav className="space-y-1" aria-label="Drawer Navigation">
                 {uniqueNav.map((item) => {
                   const Icon = item.icon;
-                  const active = pathname === item.href;
+                  const active = pendingHref
+                    ? pendingHref === item.href
+                    : pathname === item.href;
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      onClick={() => setMobileDrawerOpen(false)}
+                      onTouchStart={() => handleNavIntent(item.href)}
+                      onMouseEnter={() => handleNavIntent(item.href)}
+                      onClick={() => handleNavClick(item.href)}
                       className={cn(
                         "flex items-center gap-3 rounded-2xl min-h-11 px-3.5 py-2.5 text-sm font-bold transition-colors",
                         active
@@ -503,7 +560,9 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
                       <Link
                         key={item.href}
                         href={item.href}
-                        onClick={() => setMobileDrawerOpen(false)}
+                        onTouchStart={() => handleNavIntent(item.href)}
+                        onMouseEnter={() => handleNavIntent(item.href)}
+                        onClick={() => handleNavClick(item.href)}
                         className="flex items-center gap-3 rounded-2xl min-h-11 px-3.5 py-2 text-xs font-bold text-[#24334D]/75 hover:bg-[#FFF9F0]"
                       >
                         <Icon className="h-4 w-4 shrink-0" />
@@ -538,12 +597,17 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
         <div className="grid grid-cols-5 gap-1">
           {uniqueNav.map((item) => {
             const Icon = item.icon;
-            const active = pathname === item.href;
+            const active = pendingHref
+              ? pendingHref === item.href
+              : pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 aria-label={item.label}
+                onTouchStart={() => handleNavIntent(item.href)}
+                onMouseEnter={() => handleNavIntent(item.href)}
+                onClick={() => handleNavClick(item.href)}
                 className={cn(
                   "min-w-0 flex flex-col items-center justify-center gap-0.5 min-h-[48px] rounded-2xl px-1 py-1 text-[10px] min-[375px]:text-[11px] font-bold transition-colors",
                   active

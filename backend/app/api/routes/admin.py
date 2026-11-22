@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import re
 import uuid
@@ -485,7 +486,62 @@ def list_classes(
 ):
     """List all kindergarten classes with assigned teachers and enrolled students."""
     classes = list(db.scalars(select(SchoolClass).order_by(SchoolClass.name.asc())).all())
-    return [_serialize_class(db, c) for c in classes]
+    if not classes:
+        return []
+
+    class_ids = [c.id for c in classes]
+    teachers_by_class: dict[str, list[tuple[TeacherClassAssignment, User]]] = defaultdict(list)
+    for assignment, teacher in db.execute(
+        select(TeacherClassAssignment, User)
+        .join(User, User.id == TeacherClassAssignment.teacher_user_id)
+        .where(TeacherClassAssignment.class_id.in_(class_ids))
+        .order_by(User.full_name.asc())
+    ).all():
+        teachers_by_class[assignment.class_id].append((assignment, teacher))
+
+    students_by_class: dict[str, list[tuple[ClassEnrollment, Child]]] = defaultdict(list)
+    for enrollment, child in db.execute(
+        select(ClassEnrollment, Child)
+        .join(Child, Child.id == ClassEnrollment.child_id)
+        .where(
+            ClassEnrollment.class_id.in_(class_ids),
+            ClassEnrollment.status == "active",
+        )
+        .order_by(Child.display_name.asc())
+    ).all():
+        students_by_class[enrollment.class_id].append((enrollment, child))
+
+    return [
+        AdminClassOut(
+            id=school_class.id,
+            name=school_class.name,
+            age_group=school_class.age_group,
+            academic_year=school_class.academic_year,
+            room_label=school_class.room_label,
+            is_active=school_class.is_active,
+            teachers=[
+                AdminClassTeacherOut(
+                    teacher_user_id=teacher.id,
+                    full_name=teacher.full_name,
+                    email=teacher.email,
+                    is_lead=assignment.is_lead,
+                )
+                for assignment, teacher in teachers_by_class.get(school_class.id, [])
+            ],
+            students=[
+                AdminClassStudentOut(
+                    child_id=child.id,
+                    display_name=child.display_name,
+                    age_group=child.age_group,
+                    avatar_key=child.avatar_key,
+                    status=enrollment.status,
+                )
+                for enrollment, child in students_by_class.get(school_class.id, [])
+            ],
+            created_at=school_class.created_at,
+        )
+        for school_class in classes
+    ]
 
 
 @router.post("/classes", response_model=AdminClassOut, status_code=status.HTTP_201_CREATED)
@@ -795,7 +851,40 @@ def list_admin_subjects(
             select(Subject).order_by(Subject.sort_order.asc(), Subject.name.asc())
         ).all()
     )
-    return [_serialize_subject(db, s) for s in subjects]
+    if not subjects:
+        return []
+    subject_ids = [s.id for s in subjects]
+    lessons_by_subject = {
+        sid: cnt
+        for sid, cnt in db.execute(
+            select(Lesson.subject_id, func.count(Lesson.id))
+            .where(Lesson.subject_id.in_(subject_ids))
+            .group_by(Lesson.subject_id)
+        ).all()
+    }
+    games_by_subject = {
+        sid: cnt
+        for sid, cnt in db.execute(
+            select(Game.subject_id, func.count(Game.id))
+            .where(Game.subject_id.in_(subject_ids))
+            .group_by(Game.subject_id)
+        ).all()
+    }
+    return [
+        AdminSubjectOut(
+            id=subject.id,
+            slug=subject.slug,
+            name=subject.name,
+            description=subject.description,
+            icon_key=subject.icon_key,
+            color_hex=subject.color_hex,
+            sort_order=subject.sort_order,
+            is_active=subject.is_active,
+            lesson_count=lessons_by_subject.get(subject.id, 0),
+            game_count=games_by_subject.get(subject.id, 0),
+        )
+        for subject in subjects
+    ]
 
 
 @router.post("/subjects", response_model=AdminSubjectOut, status_code=status.HTTP_201_CREATED)
@@ -1053,12 +1142,36 @@ def get_admin_analytics(
             select(Subject).order_by(Subject.sort_order.asc(), Subject.name.asc())
         ).all()
     )
+    subject_ids = [s.id for s in subjects]
+    lessons_by_subject = (
+        {
+            sid: cnt
+            for sid, cnt in db.execute(
+                select(Lesson.subject_id, func.count(Lesson.id))
+                .where(Lesson.subject_id.in_(subject_ids))
+                .group_by(Lesson.subject_id)
+            ).all()
+        }
+        if subject_ids
+        else {}
+    )
+    games_by_subject = (
+        {
+            sid: cnt
+            for sid, cnt in db.execute(
+                select(Game.subject_id, func.count(Game.id))
+                .where(Game.subject_id.in_(subject_ids))
+                .group_by(Game.subject_id)
+            ).all()
+        }
+        if subject_ids
+        else {}
+    )
     subject_distribution = [
         AdminSubjectDistributionPoint(
             subject_name=subj.name,
-            lessons=db.scalar(select(func.count(Lesson.id)).where(Lesson.subject_id == subj.id))
-            or 0,
-            games=db.scalar(select(func.count(Game.id)).where(Game.subject_id == subj.id)) or 0,
+            lessons=lessons_by_subject.get(subj.id, 0),
+            games=games_by_subject.get(subj.id, 0),
             color_hex=subj.color_hex,
         )
         for subj in subjects
@@ -1198,19 +1311,31 @@ def get_system_health(
     """Return live database health, storage configuration, and entity counts."""
     db_status = "connected"
     try:
-        db.execute(text("SELECT 1"))
+        row = db.execute(
+            select(
+                select(func.count(User.id)).scalar_subquery().label("users"),
+                select(func.count(Child.id)).scalar_subquery().label("children"),
+                select(func.count(SchoolClass.id)).scalar_subquery().label("classes"),
+                select(func.count(Subject.id)).scalar_subquery().label("subjects"),
+                select(func.count(Theme.id)).scalar_subquery().label("themes"),
+                select(func.count(Lesson.id)).scalar_subquery().label("lessons"),
+                select(func.count(Game.id)).scalar_subquery().label("games"),
+            )
+        ).one()
+        counts = {
+            "users": row.users or 0,
+            "children": row.children or 0,
+            "classes": row.classes or 0,
+            "subjects": row.subjects or 0,
+            "themes": row.themes or 0,
+            "lessons": row.lessons or 0,
+            "games": row.games or 0,
+        }
     except Exception:
         db_status = "error"
-
-    counts = {
-        "users": db.scalar(select(func.count(User.id))) or 0,
-        "children": db.scalar(select(func.count(Child.id))) or 0,
-        "classes": db.scalar(select(func.count(SchoolClass.id))) or 0,
-        "subjects": db.scalar(select(func.count(Subject.id))) or 0,
-        "themes": db.scalar(select(func.count(Theme.id))) or 0,
-        "lessons": db.scalar(select(func.count(Lesson.id))) or 0,
-        "games": db.scalar(select(func.count(Game.id))) or 0,
-    }
+        counts = {
+            k: 0 for k in ("users", "children", "classes", "subjects", "themes", "lessons", "games")
+        }
 
     return SystemHealthOut(
         status="healthy" if db_status == "connected" else "degraded",

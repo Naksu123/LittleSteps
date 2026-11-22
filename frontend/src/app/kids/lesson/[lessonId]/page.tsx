@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Volume2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ENCOURAGE_TRY, pick } from "@/lib/gameScoring";
 import { getSoundEnabled, playChime } from "@/lib/sound";
-import { speak } from "@/lib/speech";
+import { speak, stopSpeaking } from "@/lib/speech";
 import { cn, getDefaultPortalPath } from "@/lib/utils";
 import { ApiError, contentApi, progressApi } from "@/services/api";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -73,6 +73,17 @@ function LessonViewerContent() {
     let mounted = true;
     setLoading(true);
     setError(null);
+    setStage("slides");
+    setSlideIdx(0);
+    setQuizIdx(0);
+    setQuizFeedback(null);
+    setQuizFeedbackTone(null);
+    setQuizAnsweredCorrect(false);
+    setCelebration(null);
+    firstAnswersRef.current = {};
+    starsAccRef.current = 0;
+    rewardsAccRef.current = [];
+    startedSentRef.current = false;
     Promise.all([
       contentApi.lessonDetail(lessonId),
       contentApi.lessonQuiz(lessonId),
@@ -122,6 +133,12 @@ function LessonViewerContent() {
       speak(currentSlide.narration || currentSlide.text);
     }
   }, [stage, slideIdx, currentSlide]);
+
+  useEffect(() => {
+    return () => {
+      stopSpeaking();
+    };
+  }, []);
 
   const practiceActivity = lesson?.activities[0];
   const practiceConfig =

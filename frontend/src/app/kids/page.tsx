@@ -128,6 +128,17 @@ function KidsPortalContent() {
     router.replace(`/kids?tab=${tab}`, { scroll: false });
   }
 
+  function warmLesson(id: string) {
+    router.prefetch?.(`/kids/lesson/${id}`);
+    void contentApi.lessonDetail(id).catch(() => {});
+    void contentApi.lessonQuiz(id).catch(() => {});
+  }
+
+  function warmGame(id: string) {
+    router.prefetch?.(`/kids/play/${id}`);
+    void contentApi.game(id).catch(() => {});
+  }
+
   function speakGreeting() {
     const text = activeChild
       ? `Hello ${activeChild.display_name}! Welcome to LittleSteps. Tap any colorful card to learn and play!`
@@ -338,6 +349,9 @@ function KidsPortalContent() {
                       <Button
                         variant="primary"
                         size="kid"
+                        onMouseEnter={() => {
+                          if (missionLesson) warmLesson(missionLesson.id);
+                        }}
                         onClick={() =>
                           missionLesson
                             ? router.push(`/kids/lesson/${missionLesson.id}`)
@@ -396,6 +410,7 @@ function KidsPortalContent() {
                             <Button
                               variant="secondary"
                               size="md"
+                              onMouseEnter={() => warmLesson(lesson.id)}
                               onClick={() =>
                                 router.push(`/kids/lesson/${lesson.id}`)
                               }
@@ -529,6 +544,7 @@ function KidsPortalContent() {
                               variant="kids"
                               size="kid"
                               className="w-full"
+                              onMouseEnter={() => warmLesson(lesson.id)}
                               onClick={() =>
                                 router.push(`/kids/lesson/${lesson.id}`)
                               }
@@ -587,6 +603,7 @@ function KidsPortalContent() {
                             variant="secondary"
                             size="kid"
                             className="w-full"
+                            onMouseEnter={() => warmGame(game.id)}
                             onClick={() => router.push(`/kids/play/${game.id}`)}
                           >
                             <Play className="h-5 w-5" />

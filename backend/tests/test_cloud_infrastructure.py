@@ -192,6 +192,36 @@ def test_database_url_resolution_for_postgres_and_vercel_envs(monkeypatch) -> No
         == "postgresql+psycopg://ls_admin:s3cr3t%40123@pg.internal:5432/littlesteps?sslmode=require"
     )
 
+    # Custom-prefixed Vercel Neon Marketplace variables (ignoring realtime / no-ssl keys)
+    for env_key in ("PGHOST", "PGUSER", "PGPASSWORD", "PGDATABASE"):
+        monkeypatch.delenv(env_key, raising=False)
+    monkeypatch.setenv("MY_LITTLESTEPS_NEON_REALTIME_URL", "https://realtime.example.com")
+    monkeypatch.setenv("MY_LITTLESTEPS_POSTGRES_URL_NO_SSL", "postgres://u:p@nossl:5432/neondb")
+    monkeypatch.setenv(
+        "MY_LITTLESTEPS_DATABASE_URL",
+        "postgresql://neon:pass@ep-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require",
+    )
+    monkeypatch.setenv(
+        "MY_LITTLESTEPS_DATABASE_URL_UNPOOLED",
+        "postgresql://neon:pass@ep-direct.ap-southeast-1.aws.neon.tech/neondb?sslmode=require",
+    )
+    assert (
+        resolve_database_url(for_migrations=False)
+        == "postgresql+psycopg://neon:pass@ep-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+    )
+    assert (
+        resolve_database_url(for_migrations=True)
+        == "postgresql+psycopg://neon:pass@ep-direct.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+    )
+    prefixed_prod_cfg = Settings(
+        APP_ENV="production",
+        DATABASE_URL="sqlite:///./littlesteps_dev.db",
+        JWT_SECRET_KEY="a-very-strong-production-random-secret-key-64-chars",
+        CORS_ORIGINS="https://littlesteps-lms.vercel.app",
+        STAFF_ACCESS_CODE="prod-private-staff-gate-key-9921",
+    )
+    assert validate_production_config(prefixed_prod_cfg) == []
+
 
 def test_cloudwatch_json_formatter() -> None:
     formatter = CloudWatchJsonFormatter()

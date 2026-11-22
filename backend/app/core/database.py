@@ -7,7 +7,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
-from app.core.config import settings
+from app.core.config import find_postgres_url_from_env, settings
 
 _DEFAULT_SQLITE_URL = "sqlite:///./littlesteps_dev.db"
 _NON_LIBPQ_PARAMS = {"pgbouncer", "supa", "connection_limit", "pool_timeout", "schema"}
@@ -74,31 +74,9 @@ def resolve_database_url(for_migrations: bool = False) -> str:
                 return _normalize_postgres_url(pooled) if pooled.startswith("postgres") else pooled
         return _normalize_postgres_url(configured) if configured.startswith("postgres") else configured
 
-    env_keys = (
-        (
-            "DATABASE_URL_UNPOOLED",
-            "POSTGRES_URL_NON_POOLING",
-            "DATABASE_URL",
-            "POSTGRES_URL",
-            "NEON_DATABASE_URL",
-            "DATABASE_URL_POOLED",
-            "POSTGRES_PRISMA_URL",
-        )
-        if for_migrations
-        else (
-            "DATABASE_URL_POOLED",
-            "DATABASE_URL",
-            "POSTGRES_URL",
-            "POSTGRES_PRISMA_URL",
-            "NEON_DATABASE_URL",
-            "DATABASE_URL_UNPOOLED",
-            "POSTGRES_URL_NON_POOLING",
-        )
-    )
-    for key in env_keys:
-        candidate = (os.getenv(key) or "").strip()
-        if candidate and candidate != _DEFAULT_SQLITE_URL:
-            return _normalize_postgres_url(candidate) if candidate.startswith("postgres") else candidate
+    env_pg = find_postgres_url_from_env(for_migrations=for_migrations)
+    if env_pg:
+        return _normalize_postgres_url(env_pg)
 
     discrete_url, _ = _resolve_discrete_pg_url()
     if discrete_url:

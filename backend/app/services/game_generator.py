@@ -842,9 +842,14 @@ def _gen_animal_sounds(rng: random.Random) -> list[dict[str, Any]]:
         rng.shuffle(choices)
         rounds.append(
             {
-                "prompt": f"Who says '{sound}'?",
-                "speak": f"Listen closely: {sound} Which animal friend makes that sound?",
-                "visual": {"kind": "sound", "text": sound},
+                "prompt": "Listen! Which animal friend makes this sound?",
+                "speak": "Listen to this animal sound! Which animal friend makes that sound?",
+                "visual": {
+                    "kind": "sound",
+                    "text": sound,
+                    "animal": key,
+                    "label": label,
+                },
                 "choices": choices,
                 "answer": key,
             }

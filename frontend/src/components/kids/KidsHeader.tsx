@@ -2,8 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Flame, Star, Volume2, VolumeX } from "lucide-react";
-import { getSoundEnabled, setSoundEnabled } from "@/lib/sound";
+import { ArrowLeft, Flame, Music, Star, Volume2, VolumeX } from "lucide-react";
+import {
+  getMusicEnabled,
+  getSoundEnabled,
+  getSoundVolume,
+  onAudioSettingsChange,
+  setMusicEnabled,
+  setSoundEnabled,
+  setSoundVolume,
+} from "@/lib/sound";
 import { GrownUpGate } from "@/components/layout/GrownUpGate";
 import { ChildAvatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -24,15 +32,39 @@ export function KidsHeader({
   exitHref = "/parent",
 }: KidsHeaderProps) {
   const [soundOn, setSoundOn] = useState(true);
+  const [volumePct, setVolumePct] = useState(85);
+  const [musicOn, setMusicOn] = useState(false);
 
   useEffect(() => {
-    setSoundOn(getSoundEnabled());
+    const sync = () => {
+      setSoundOn(getSoundEnabled());
+      setVolumePct(Math.round(getSoundVolume() * 100));
+      setMusicOn(getMusicEnabled());
+    };
+    sync();
+    return onAudioSettingsChange(sync);
   }, []);
 
   function toggleSound() {
     const next = !soundOn;
     setSoundOn(next);
     setSoundEnabled(next);
+  }
+
+  function handleVolumeChange(nextPct: number) {
+    const clamped = Math.min(100, Math.max(0, nextPct));
+    setVolumePct(clamped);
+    setSoundVolume(clamped / 100);
+    if (clamped > 0 && !soundOn) {
+      setSoundOn(true);
+      setSoundEnabled(true);
+    }
+  }
+
+  function toggleMusic() {
+    const next = !musicOn;
+    setMusicOn(next);
+    setMusicEnabled(next);
   }
 
   return (
@@ -67,22 +99,58 @@ export function KidsHeader({
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 rounded-2xl bg-[#FFF9F0] px-2.5 py-1.5 border border-[#24334D]/12">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={toggleSound}
+            aria-label={soundOn ? "Turn sound off" : "Turn sound on"}
+            className="rounded-xl px-2.5 min-h-9"
+          >
+            {soundOn && volumePct > 0 ? (
+              <Volume2 className="h-5 w-5 text-[#175B82]" />
+            ) : (
+              <VolumeX className="h-5 w-5 text-[#24334D]/50" />
+            )}
+            <span className="hidden sm:inline text-xs font-bold">
+              {soundOn && volumePct > 0 ? "Sound On" : "Muted"}
+            </span>
+          </Button>
+
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={soundOn ? volumePct : 0}
+            onChange={(e) => handleVolumeChange(Number(e.target.value))}
+            aria-label="Audio volume"
+            className="w-16 sm:w-20 accent-[#175B82] cursor-pointer"
+          />
+        </div>
+
         <Button
           type="button"
           variant="outline"
           size="md"
-          onClick={toggleSound}
-          aria-label={soundOn ? "Turn sound off" : "Turn sound on"}
+          onClick={toggleMusic}
+          aria-label={
+            musicOn ? "Turn background music off" : "Turn background music on"
+          }
           className="rounded-2xl min-h-12"
         >
-          {soundOn ? (
-            <Volume2 className="h-5 w-5 text-[#175B82]" />
-          ) : (
-            <VolumeX className="h-5 w-5 text-[#24334D]/50" />
-          )}
-          <span className="hidden sm:inline">{soundOn ? "Sound On" : "Muted"}</span>
+          <Music
+            className={
+              musicOn ? "h-4 w-4 text-[#166041]" : "h-4 w-4 text-[#24334D]/45"
+            }
+          />
+          <span className="hidden md:inline text-xs">
+            {musicOn ? "Music On" : "Music Off"}
+          </span>
         </Button>
+
         <GrownUpGate exitHref={exitHref} />
       </div>
     </header>

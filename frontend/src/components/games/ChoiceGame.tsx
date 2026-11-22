@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Volume2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RotateCcw, Volume2 } from "lucide-react";
+import {
+  getAnimalSoundMeta,
+  playAnimalSound,
+  resolveAnimalKey,
+  stopAnimalSound,
+} from "@/lib/animalSounds";
 import {
   ENCOURAGE_SUCCESS,
   ENCOURAGE_TRY,
@@ -9,7 +15,7 @@ import {
   scoreFromFirstTries,
 } from "@/lib/gameScoring";
 import { playChime } from "@/lib/sound";
-import { speak } from "@/lib/speech";
+import { speak, stopSpeaking } from "@/lib/speech";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { ChoiceConfig, ChoiceOption, GameResult } from "@/types";
@@ -42,6 +48,7 @@ export function ChoiceGame({
   );
   const [missedKeys, setMissedKeys] = useState<string[]>([]);
   const [locked, setLocked] = useState(false);
+  const [playingAnimalSound, setPlayingAnimalSound] = useState(false);
 
   const missedThisRoundRef = useRef(false);
   const firstTryCountRef = useRef(0);
@@ -52,10 +59,51 @@ export function ChoiceGame({
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      stopAnimalSound();
+      stopSpeaking();
     };
   }, []);
 
   const currentRound = rounds[roundIdx];
+  const visual = currentRound?.visual;
+
+  const roundAnimalKey = useMemo(() => {
+    if (!currentRound || currentRound.visual?.kind !== "sound") return null;
+    return resolveAnimalKey(
+      currentRound.visual.animal ||
+        currentRound.answer ||
+        currentRound.visual.text
+    );
+  }, [currentRound]);
+
+  const roundAnimalMeta = useMemo(
+    () => (roundAnimalKey ? getAnimalSoundMeta(roundAnimalKey) : null),
+    [roundAnimalKey]
+  );
+
+  const triggerRoundAnimalSound = useCallback(
+    (withPromptAfter = false) => {
+      if (!roundAnimalKey) return false;
+      return playAnimalSound(roundAnimalKey, {
+        pronounceNameAfter: false,
+        followUpText: withPromptAfter
+          ? "Which animal friend makes that sound?"
+          : undefined,
+        onStart: () => setPlayingAnimalSound(true),
+        onEnd: () => setPlayingAnimalSound(false),
+      });
+    },
+    [roundAnimalKey]
+  );
+
+  useEffect(() => {
+    setPlayingAnimalSound(false);
+    if (!roundAnimalKey) return;
+    const autoTimer = setTimeout(() => {
+      triggerRoundAnimalSound(false);
+    }, 160);
+    return () => clearTimeout(autoTimer);
+  }, [roundIdx, roundAnimalKey, triggerRoundAnimalSound]);
 
   const displayedChoices = useMemo<ChoiceOption[]>(() => {
     if (!currentRound) return [];
@@ -67,26 +115,51 @@ export function ChoiceGame({
   }
 
   function handleSpeak() {
-    const text =
-      currentRound.speak ||
-      (currentRound.visual?.kind === "sound"
-        ? currentRound.visual.text
-        : currentRound.prompt);
+    if (roundAnimalKey) {
+      triggerRoundAnimalSound(true);
+      return;
+    }
+    const text = currentRound.speak || currentRound.prompt;
     speak(text);
+  }
+
+  function handlePlayAnimalSoundOnly() {
+    if (roundAnimalKey) {
+      triggerRoundAnimalSound(false);
+    } else {
+      handleSpeak();
+    }
   }
 
   function handleSelect(choice: ChoiceOption) {
     if (locked) return;
     totalAttemptsRef.current += 1;
 
+    const tappedAnimalKey =
+      resolveAnimalKey(choice.key) ||
+      (visual?.kind === "sound" ? resolveAnimalKey(choice.label) : null);
+
     if (choice.key === currentRound.answer) {
       setLocked(true);
       if (!missedThisRoundRef.current) {
         firstTryCountRef.current += 1;
       }
-      playChime("success");
+      const encouragement = pick(ENCOURAGE_SUCCESS);
       setFeedbackTone("success");
-      setFeedback(pick(ENCOURAGE_SUCCESS));
+      setFeedback(encouragement);
+
+      if (tappedAnimalKey) {
+        // Play the authentic animal sound effect first, then warmly pronounce the animal's name
+        playAnimalSound(tappedAnimalKey, {
+          pronounceNameAfter: true,
+          onStart: () => setPlayingAnimalSound(true),
+          onEnd: () => setPlayingAnimalSound(false),
+        });
+      } else {
+        playChime("success");
+      }
+
+      const advanceDelayMs = tappedAnimalKey ? 1750 : 900;
 
       timerRef.current = setTimeout(() => {
         if (roundIdx + 1 >= rounds.length) {
@@ -110,19 +183,26 @@ export function ChoiceGame({
           setLocked(false);
           setRoundIdx((prev) => prev + 1);
         }
-      }, 900);
+      }, advanceDelayMs);
     } else {
       missedThisRoundRef.current = true;
-      playChime("try");
       setFeedbackTone("try");
       setFeedback(pick(ENCOURAGE_TRY));
       setMissedKeys((prev) =>
         prev.includes(choice.key) ? prev : [...prev, choice.key]
       );
+
+      if (tappedAnimalKey) {
+        playAnimalSound(tappedAnimalKey, {
+          pronounceNameAfter: true,
+          onStart: () => setPlayingAnimalSound(true),
+          onEnd: () => setPlayingAnimalSound(false),
+        });
+      } else {
+        playChime("try");
+      }
     }
   }
-
-  const visual = currentRound.visual;
 
   return (
     <div className="rounded-3xl bg-white p-6 sm:p-8 border-2 border-[#78C8F5]/35 shadow-md space-y-6">
@@ -203,14 +283,45 @@ export function ChoiceGame({
           )}
 
           {visual.kind === "sound" && (
-            <button
-              type="button"
-              onClick={handleSpeak}
-              className="inline-flex items-center gap-3 rounded-3xl bg-[#DCF2FD] px-6 py-4 font-display text-2xl font-bold text-[#175B82] hover:scale-105 transition-transform cursor-pointer"
-            >
-              <Volume2 className="h-7 w-7" />
-              &ldquo;{visual.text}&rdquo;
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={handlePlayAnimalSoundOnly}
+                aria-label="Play animal sound"
+                className={cn(
+                  "inline-flex items-center gap-3 rounded-3xl px-6 py-4 font-display text-xl sm:text-2xl font-bold text-[#175B82] transition-all cursor-pointer border-2",
+                  playingAnimalSound
+                    ? "bg-[#FFE58A] border-[#24334D]/25 scale-105 shadow-md"
+                    : "bg-[#DCF2FD] border-[#78C8F5]/50 hover:scale-105"
+                )}
+              >
+                <Volume2
+                  className={cn(
+                    "h-7 w-7",
+                    playingAnimalSound && "animate-bounce"
+                  )}
+                />
+                <span>
+                  {roundAnimalMeta
+                    ? playingAnimalSound
+                      ? "Playing Animal Sound..."
+                      : "Play Animal Sound"
+                    : `“${visual.text}”`}
+                </span>
+              </button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                onClick={handlePlayAnimalSoundOnly}
+                aria-label="Replay animal sound"
+                className="rounded-2xl min-h-12"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Replay Sound
+              </Button>
+            </div>
           )}
         </div>
       )}

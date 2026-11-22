@@ -153,7 +153,7 @@ export type ChoiceVisual =
   | { kind: "emoji"; value: string }
   | { kind: "count"; emoji: string; count: number }
   | { kind: "sequence"; items: string[] }
-  | { kind: "sound"; text: string };
+  | { kind: "sound"; text: string; animal?: string; label?: string };
 
 export interface ChoiceRound {
   prompt: string;

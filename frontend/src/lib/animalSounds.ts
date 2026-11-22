@@ -1,8 +1,8 @@
 import {
   duckBackgroundMusic,
-  getSharedAudioContext,
   getSoundEnabled,
   getSoundVolume,
+  onAudioSettingsChange,
   registerAudioStopCallback,
 } from "@/lib/sound";
 import { setBeforeSpeakHook, speak, stopSpeaking } from "@/lib/speech";
@@ -22,16 +22,27 @@ export type AnimalSoundKey =
   | "owl"
   | "bee"
   | "chick"
+  | "chicken"
   | "goat"
-  | "rooster";
+  | "rooster"
+  | "monkey";
+
+export type AnimalCategory = "farm" | "wild" | "garden";
 
 export interface AnimalSoundMeta {
   key: AnimalSoundKey;
   label: string;
   emoji: string;
+  category: AnimalCategory;
   audioSrc: string;
   soundDescription: string;
   durationMs: number;
+  fileSizeKb: number;
+  loudnessLufs: number;
+  source: string;
+  license: string;
+  attribution: string;
+  verified: boolean;
 }
 
 export const ANIMAL_SOUND_CATALOG: Record<AnimalSoundKey, AnimalSoundMeta> = {
@@ -39,131 +50,277 @@ export const ANIMAL_SOUND_CATALOG: Record<AnimalSoundKey, AnimalSoundMeta> = {
     key: "dog",
     label: "Dog",
     emoji: "🐶",
-    audioSrc: "/sounds/animals/dog.wav",
-    soundDescription: "Friendly dog barking",
-    durationMs: 920,
+    category: "farm",
+    audioSrc: "/sounds/animals/dog.mp3",
+    soundDescription: "Clear close-up dog barking",
+    durationMs: 2400,
+    fileSizeKb: 38.4,
+    loudnessLufs: -16.9,
+    source: "BigSoundBank (#0612)",
+    license: "CC0 1.0 Public Domain",
+    attribution: "BigSoundBank (CC0)",
+    verified: true,
   },
   cat: {
     key: "cat",
     label: "Cat",
     emoji: "🐱",
-    audioSrc: "/sounds/animals/cat.wav",
-    soundDescription: "Gentle cat meowing",
-    durationMs: 960,
+    category: "farm",
+    audioSrc: "/sounds/animals/cat.mp3",
+    soundDescription: "Warm cat meowing twice",
+    durationMs: 2200,
+    fileSizeKb: 35.6,
+    loudnessLufs: -16.5,
+    source: "BigSoundBank (#0098)",
+    license: "CC0 1.0 Public Domain",
+    attribution: "BigSoundBank (CC0)",
+    verified: true,
   },
   cow: {
     key: "cow",
     label: "Cow",
     emoji: "🐮",
-    audioSrc: "/sounds/animals/cow.wav",
-    soundDescription: "Warm cow mooing",
-    durationMs: 1250,
+    category: "farm",
+    audioSrc: "/sounds/animals/cow.mp3",
+    soundDescription: "Warm farm cow mooing",
+    durationMs: 1750,
+    fileSizeKb: 28.2,
+    loudnessLufs: -16.4,
+    source: "BigSoundBank (#0546)",
+    license: "CC0 1.0 Public Domain",
+    attribution: "BigSoundBank (CC0)",
+    verified: true,
   },
   duck: {
     key: "duck",
     label: "Duck",
     emoji: "🦆",
-    audioSrc: "/sounds/animals/duck.wav",
-    soundDescription: "Playful duck quacking",
-    durationMs: 860,
+    category: "farm",
+    audioSrc: "/sounds/animals/duck.mp3",
+    soundDescription: "Playful pond duck quacking",
+    durationMs: 2200,
+    fileSizeKb: 35.6,
+    loudnessLufs: -16.7,
+    source: "BigSoundBank (#0276)",
+    license: "CC0 1.0 Public Domain",
+    attribution: "BigSoundBank (CC0)",
+    verified: true,
   },
   lion: {
     key: "lion",
     label: "Lion",
     emoji: "🦁",
-    audioSrc: "/sounds/animals/lion.wav",
-    soundDescription: "Deep lion roaring",
-    durationMs: 1300,
+    category: "wild",
+    audioSrc: "/sounds/animals/lion.mp3",
+    soundDescription: "Deep realistic lion roaring",
+    durationMs: 2600,
+    fileSizeKb: 41.7,
+    loudnessLufs: -16.4,
+    source: "Wikimedia Commons (Lion Tamil Nadu)",
+    license: "Public Domain",
+    attribution: "Wikimedia Commons (Public Domain)",
+    verified: true,
   },
   elephant: {
     key: "elephant",
     label: "Elephant",
     emoji: "🐘",
-    audioSrc: "/sounds/animals/elephant.wav",
-    soundDescription: "Brassy elephant trumpeting",
-    durationMs: 1160,
+    category: "wild",
+    audioSrc: "/sounds/animals/elephant.mp3",
+    soundDescription: "Authentic elephant trumpeting",
+    durationMs: 1440,
+    fileSizeKb: 23.3,
+    loudnessLufs: -16.4,
+    source: "Wikimedia Commons (Elephant trumpet)",
+    license: "CC0 1.0 Public Domain",
+    attribution: "Wikimedia Commons (CC0)",
+    verified: true,
   },
   bird: {
     key: "bird",
     label: "Bird",
     emoji: "🐦",
-    audioSrc: "/sounds/animals/bird.wav",
-    soundDescription: "Natural bird chirping",
-    durationMs: 960,
+    category: "garden",
+    audioSrc: "/sounds/animals/bird.mp3",
+    soundDescription: "Cheerful songbird chirping",
+    durationMs: 2200,
+    fileSizeKb: 35.6,
+    loudnessLufs: -16.5,
+    source: "BigSoundBank (#0692)",
+    license: "CC0 1.0 Public Domain",
+    attribution: "BigSoundBank (CC0)",
+    verified: true,
   },
   sheep: {
     key: "sheep",
     label: "Sheep",
     emoji: "🐑",
-    audioSrc: "/sounds/animals/sheep.wav",
-    soundDescription: "Soft sheep bleating",
-    durationMs: 1060,
+    category: "farm",
+    audioSrc: "/sounds/animals/sheep.mp3",
+    soundDescription: "Warm woolly sheep baaing",
+    durationMs: 2100,
+    fileSizeKb: 33.9,
+    loudnessLufs: -16.4,
+    source: "Wikimedia Commons (Sheep field)",
+    license: "Public Domain",
+    attribution: "Wikimedia Commons (Public Domain)",
+    verified: true,
   },
   horse: {
     key: "horse",
     label: "Horse",
     emoji: "🐴",
-    audioSrc: "/sounds/animals/horse.wav",
-    soundDescription: "Cheerful horse neighing",
-    durationMs: 1160,
+    category: "farm",
+    audioSrc: "/sounds/animals/horse.mp3",
+    soundDescription: "Bright horse neighing and whinnying",
+    durationMs: 1550,
+    fileSizeKb: 25.4,
+    loudnessLufs: -16.4,
+    source: "BigSoundBank (#0284)",
+    license: "CC0 1.0 Public Domain",
+    attribution: "BigSoundBank (CC0)",
+    verified: true,
   },
   pig: {
     key: "pig",
     label: "Pig",
     emoji: "🐷",
-    audioSrc: "/sounds/animals/pig.wav",
-    soundDescription: "Happy pig oinking",
-    durationMs: 860,
+    category: "farm",
+    audioSrc: "/sounds/animals/pig.mp3",
+    soundDescription: "Friendly pig oinking and grunting",
+    durationMs: 1390,
+    fileSizeKb: 22.9,
+    loudnessLufs: -16.5,
+    source: "Wikimedia Commons (Erdie + Mudchute)",
+    license: "CC BY 3.0 / CC BY-SA 3.0",
+    attribution: "erdie & Secretlondon / Wikimedia Commons",
+    verified: true,
   },
   frog: {
     key: "frog",
     label: "Frog",
     emoji: "🐸",
-    audioSrc: "/sounds/animals/frog.wav",
-    soundDescription: "Pond frog croaking",
-    durationMs: 860,
+    category: "garden",
+    audioSrc: "/sounds/animals/frog.mp3",
+    soundDescription: "Classic pond frog croaking",
+    durationMs: 2200,
+    fileSizeKb: 35.6,
+    loudnessLufs: -16.8,
+    source: "BigSoundBank (#0998)",
+    license: "CC0 1.0 Public Domain",
+    attribution: "BigSoundBank (CC0)",
+    verified: true,
   },
   owl: {
     key: "owl",
     label: "Owl",
     emoji: "🦉",
-    audioSrc: "/sounds/animals/owl.wav",
-    soundDescription: "Cozy owl hooting",
-    durationMs: 1060,
+    category: "garden",
+    audioSrc: "/sounds/animals/owl.mp3",
+    soundDescription: "Gentle tawny owl hooting",
+    durationMs: 1300,
+    fileSizeKb: 21.3,
+    loudnessLufs: -16.4,
+    source: "BigSoundBank (#1763)",
+    license: "CC0 1.0 Public Domain",
+    attribution: "BigSoundBank (CC0)",
+    verified: true,
   },
   bee: {
     key: "bee",
     label: "Bee",
     emoji: "🐝",
-    audioSrc: "/sounds/animals/bee.wav",
-    soundDescription: "Garden bee buzzing",
-    durationMs: 960,
+    category: "garden",
+    audioSrc: "/sounds/animals/bee.mp3",
+    soundDescription: "Close-up bumblebee buzzing",
+    durationMs: 2000,
+    fileSizeKb: 32.3,
+    loudnessLufs: -16.4,
+    source: "BigSoundBank (#1001)",
+    license: "CC0 1.0 Public Domain",
+    attribution: "BigSoundBank (CC0)",
+    verified: true,
   },
   chick: {
     key: "chick",
     label: "Chick",
     emoji: "🐥",
-    audioSrc: "/sounds/animals/chick.wav",
-    soundDescription: "Little chick cheeping",
-    durationMs: 860,
+    category: "farm",
+    audioSrc: "/sounds/animals/chick.mp3",
+    soundDescription: "Baby chick cheeping and peeping",
+    durationMs: 2000,
+    fileSizeKb: 32.3,
+    loudnessLufs: -16.4,
+    source: "BigSoundBank (#0672)",
+    license: "CC0 1.0 Public Domain",
+    attribution: "BigSoundBank (CC0)",
+    verified: true,
+  },
+  chicken: {
+    key: "chicken",
+    label: "Chicken",
+    emoji: "🐔",
+    category: "farm",
+    audioSrc: "/sounds/animals/chicken.mp3",
+    soundDescription: "Happy farm hen clucking",
+    durationMs: 2200,
+    fileSizeKb: 35.6,
+    loudnessLufs: -16.4,
+    source: "Wikimedia Commons (Hen egg call)",
+    license: "Public Domain",
+    attribution: "alys / Wikimedia Commons (Public Domain)",
+    verified: true,
   },
   goat: {
     key: "goat",
     label: "Goat",
     emoji: "🐐",
-    audioSrc: "/sounds/animals/goat.wav",
-    soundDescription: "Mountain goat bleating",
-    durationMs: 960,
+    category: "farm",
+    audioSrc: "/sounds/animals/goat.mp3",
+    soundDescription: "Expressive goat bleating twice",
+    durationMs: 2100,
+    fileSizeKb: 33.9,
+    loudnessLufs: -18.6,
+    source: "BigSoundBank (#0880)",
+    license: "CC0 1.0 Public Domain",
+    attribution: "BigSoundBank (CC0)",
+    verified: true,
   },
   rooster: {
     key: "rooster",
     label: "Rooster",
     emoji: "🐓",
-    audioSrc: "/sounds/animals/rooster.wav",
-    soundDescription: "Morning rooster crowing",
-    durationMs: 1160,
+    category: "farm",
+    audioSrc: "/sounds/animals/rooster.mp3",
+    soundDescription: "Bright morning rooster crowing",
+    durationMs: 2500,
+    fileSizeKb: 40.1,
+    loudnessLufs: -16.4,
+    source: "BigSoundBank (#0104)",
+    license: "CC0 1.0 Public Domain",
+    attribution: "BigSoundBank (CC0)",
+    verified: true,
+  },
+  monkey: {
+    key: "monkey",
+    label: "Monkey",
+    emoji: "🐵",
+    category: "wild",
+    audioSrc: "/sounds/animals/monkey.mp3",
+    soundDescription: "Playful monkey pant-hoot calls",
+    durationMs: 2400,
+    fileSizeKb: 38.4,
+    loudnessLufs: -16.4,
+    source: "Wikimedia Commons (Pant-hoot call)",
+    license: "CC BY 4.0",
+    attribution: "Pawel Fedurek et al. / Wikimedia Commons",
+    verified: true,
   },
 };
+
+export const ANIMAL_SOUND_LIST: AnimalSoundMeta[] = Object.values(
+  ANIMAL_SOUND_CATALOG
+);
 
 const ANIMAL_LOOKUP_ALIASES: Record<string, AnimalSoundKey> = {
   dog: "dog",
@@ -217,15 +374,24 @@ const ANIMAL_LOOKUP_ALIASES: Record<string, AnimalSoundKey> = {
   buzz: "bee",
   "buzz buzz": "bee",
   chick: "chick",
-  chicken: "chick",
   cheep: "chick",
   "cheep cheep": "chick",
+  peep: "chick",
+  chicken: "chicken",
+  hen: "chicken",
+  cluck: "chicken",
+  "cluck cluck": "chicken",
   goat: "goat",
   maa: "goat",
   "maa maa": "goat",
   rooster: "rooster",
   "cock-a-doodle-doo": "rooster",
   "cock a doodle doo": "rooster",
+  monkey: "monkey",
+  chimp: "monkey",
+  chimpanzee: "monkey",
+  "ooh ooh": "monkey",
+  "ooh ooh aah aah": "monkey",
 };
 
 export function resolveAnimalKey(input?: string | null): AnimalSoundKey | null {
@@ -238,12 +404,16 @@ export function resolveAnimalKey(input?: string | null): AnimalSoundKey | null {
   if (cleaned in ANIMAL_LOOKUP_ALIASES) {
     return ANIMAL_LOOKUP_ALIASES[cleaned];
   }
-  for (const [alias, key] of Object.entries(ANIMAL_LOOKUP_ALIASES)) {
+  const orderedAliases = Object.entries(ANIMAL_LOOKUP_ALIASES).sort(
+    (a, b) => b[0].length - a[0].length
+  );
+  for (const [alias, key] of orderedAliases) {
     if (
       alias.length >= 3 &&
-      new RegExp(`\\b${alias.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\b`, "i").test(
-        cleaned
-      )
+      new RegExp(
+        `\\b${alias.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\b`,
+        "i"
+      ).test(cleaned)
     ) {
       return key;
     }
@@ -258,9 +428,18 @@ export function getAnimalSoundMeta(
   return key ? ANIMAL_SOUND_CATALOG[key] : null;
 }
 
+const preloadedAudioMap = new Map<AnimalSoundKey, HTMLAudioElement>();
 let activeAudioElement: HTMLAudioElement | null = null;
 let activeTimer: ReturnType<typeof setTimeout> | null = null;
+let activeAudioUnsub: (() => void) | null = null;
 let playbackSequenceId = 0;
+
+function detachAudioListeners(audio: HTMLAudioElement | null): void {
+  if (!audio) return;
+  audio.onended = null;
+  audio.onerror = null;
+  audio.onplaying = null;
+}
 
 export function stopAnimalSound(): void {
   playbackSequenceId += 1;
@@ -268,10 +447,13 @@ export function stopAnimalSound(): void {
     clearTimeout(activeTimer);
     activeTimer = null;
   }
+  if (activeAudioUnsub) {
+    activeAudioUnsub();
+    activeAudioUnsub = null;
+  }
   if (activeAudioElement) {
     try {
-      activeAudioElement.onended = null;
-      activeAudioElement.onerror = null;
+      detachAudioListeners(activeAudioElement);
       activeAudioElement.pause();
       activeAudioElement.currentTime = 0;
     } catch {
@@ -284,107 +466,45 @@ export function stopAnimalSound(): void {
 registerAudioStopCallback(stopAnimalSound);
 setBeforeSpeakHook(stopAnimalSound);
 
-/**
- * Multi-harmonic Web Audio bio-acoustic fallback used only if the .wav file
- * cannot be loaded (e.g. offline mode or headless test environments).
- * Never uses text-to-speech to imitate animal sounds.
- */
-function playFallbackBioAcousticAnimalSound(
-  key: AnimalSoundKey,
-  volume: number,
-  onDone: () => void
-): void {
-  const ctx = getSharedAudioContext();
-  if (!ctx) {
-    activeTimer = setTimeout(onDone, 250);
+export function preloadAnimalSounds(keys?: AnimalSoundKey[]): void {
+  if (
+    typeof window === "undefined" ||
+    typeof window.Audio !== "function" ||
+    process.env.NODE_ENV === "test"
+  ) {
     return;
   }
-
-  const profileMap: Record<
-    AnimalSoundKey,
-    { notes: Array<[number, number, number]>; type: OscillatorType; formantHz: number }
-  > = {
-    cow: { notes: [[125, 138, 0.85]], type: "sawtooth", formantHz: 520 },
-    cat: { notes: [[460, 620, 0.38], [620, 410, 0.42]], type: "triangle", formantHz: 1450 },
-    dog: { notes: [[240, 155, 0.22], [250, 150, 0.24]], type: "sawtooth", formantHz: 780 },
-    duck: { notes: [[330, 260, 0.22], [325, 250, 0.24]], type: "sawtooth", formantHz: 1500 },
-    lion: { notes: [[110, 88, 0.9]], type: "sawtooth", formantHz: 420 },
-    elephant: { notes: [[410, 740, 0.4], [740, 580, 0.45]], type: "sawtooth", formantHz: 1650 },
-    bird: {
-      notes: [
-        [2400, 3300, 0.16],
-        [2600, 3600, 0.18],
-        [2500, 3450, 0.22],
-      ],
-      type: "sine",
-      formantHz: 3100,
-    },
-    sheep: { notes: [[265, 250, 0.78]], type: "sawtooth", formantHz: 1100 },
-    horse: { notes: [[640, 480, 0.42], [480, 360, 0.42]], type: "sawtooth", formantHz: 1350 },
-    pig: { notes: [[155, 210, 0.24], [165, 220, 0.25]], type: "sawtooth", formantHz: 680 },
-    frog: { notes: [[195, 420, 0.24], [205, 450, 0.25]], type: "sawtooth", formantHz: 920 },
-    owl: { notes: [[390, 375, 0.32], [375, 355, 0.45]], type: "sine", formantHz: 450 },
-    bee: { notes: [[205, 215, 0.75]], type: "sawtooth", formantHz: 1200 },
-    chick: {
-      notes: [
-        [2900, 3450, 0.15],
-        [2950, 3500, 0.15],
-        [2900, 3400, 0.16],
-      ],
-      type: "sine",
-      formantHz: 3200,
-    },
-    goat: { notes: [[340, 315, 0.75]], type: "sawtooth", formantHz: 1300 },
-    rooster: {
-      notes: [
-        [520, 560, 0.15],
-        [630, 660, 0.15],
-        [780, 820, 0.18],
-        [830, 630, 0.4],
-      ],
-      type: "sawtooth",
-      formantHz: 1550,
-    },
-  };
-
-  const profile = profileMap[key];
-  let elapsed = 0;
-  const now = ctx.currentTime;
-  const peakGain = Math.min(0.18, 0.12 * volume);
-
-  try {
-    profile.notes.forEach(([fStart, fEnd, dur]) => {
-      const start = now + elapsed;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = profile.type;
-      osc.frequency.setValueAtTime(fStart, start);
-      osc.frequency.linearRampToValueAtTime?.(fEnd, start + dur);
-
-      gain.gain.setValueAtTime(0.001, start);
-      gain.gain.linearRampToValueAtTime(peakGain, start + 0.025);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
-
-      if (typeof ctx.createBiquadFilter === "function") {
-        const filter = ctx.createBiquadFilter();
-        filter.type = "bandpass";
-        filter.frequency.setValueAtTime(profile.formantHz, start);
-        filter.Q.setValueAtTime(2.4, start);
-        osc.connect(filter);
-        filter.connect(gain);
-      } else {
-        osc.connect(gain);
-      }
-      gain.connect(ctx.destination);
-      osc.start(start);
-      osc.stop(start + dur + 0.02);
-      elapsed += dur + 0.07;
-    });
-  } catch {
-    // Ignore synth fallback errors
+  const targets = keys ?? ANIMAL_SOUND_LIST.map((item) => item.key);
+  for (const key of targets) {
+    const meta = ANIMAL_SOUND_CATALOG[key];
+    if (!meta || preloadedAudioMap.has(key)) continue;
+    try {
+      const audio = new window.Audio(meta.audioSrc);
+      audio.preload = "auto";
+      audio.load?.();
+      preloadedAudioMap.set(key, audio);
+    } catch {
+      // Ignore preload errors in restricted browsers
+    }
   }
+}
 
-  activeTimer = setTimeout(onDone, Math.max(250, Math.round(elapsed * 1000)));
+function getOrCreateAudioElement(meta: AnimalSoundMeta): HTMLAudioElement {
+  const cached = preloadedAudioMap.get(meta.key);
+  if (cached) {
+    detachAudioListeners(cached);
+    try {
+      cached.pause();
+      cached.currentTime = 0;
+    } catch {
+      // Ignore seek reset errors on unbuffered elements
+    }
+    return cached;
+  }
+  const fresh = new window.Audio(meta.audioSrc);
+  fresh.preload = "auto";
+  preloadedAudioMap.set(meta.key, fresh);
+  return fresh;
 }
 
 export function playAnimalSound(
@@ -392,14 +512,17 @@ export function playAnimalSound(
   opts?: {
     pronounceNameAfter?: boolean;
     followUpText?: string;
+    onLoading?: () => void;
     onStart?: () => void;
     onEnd?: () => void;
+    onBlocked?: () => void;
+    onError?: (message: string) => void;
   }
 ): boolean {
   const meta = getAnimalSoundMeta(animalKeyOrLabel);
   if (!meta) return false;
 
-  // Prevent overlapping audio across rapid animal selections or active TTS
+  // Prevent overlapping audio across rapid selections or active narration
   stopSpeaking();
   stopAnimalSound();
 
@@ -414,12 +537,16 @@ export function playAnimalSound(
   }
 
   const seqId = playbackSequenceId;
-  duckBackgroundMusic(meta.durationMs + 1400);
-  opts?.onStart?.();
+  duckBackgroundMusic(meta.durationMs + 1600);
 
   const handleSoundFinished = () => {
     if (seqId !== playbackSequenceId) return;
+    if (activeAudioUnsub) {
+      activeAudioUnsub();
+      activeAudioUnsub = null;
+    }
     activeAudioElement = null;
+
     if (!getSoundEnabled()) {
       opts?.onEnd?.();
       return;
@@ -443,7 +570,7 @@ export function playAnimalSound(
             }
           },
         });
-      }, 120);
+      }, 140);
     } else {
       opts?.onEnd?.();
     }
@@ -455,12 +582,31 @@ export function playAnimalSound(
     process.env.NODE_ENV !== "test"
   ) {
     try {
-      const audio = new window.Audio(meta.audioSrc);
-      audio.preload = "auto";
-      audio.volume = Math.min(1, Math.max(0.05, volume * 0.9));
+      const audio = getOrCreateAudioElement(meta);
+      audio.volume = Math.min(1, Math.max(0.05, volume * 0.92));
       activeAudioElement = audio;
 
+      activeAudioUnsub = onAudioSettingsChange(() => {
+        if (seqId !== playbackSequenceId || activeAudioElement !== audio) return;
+        const nextEnabled = getSoundEnabled();
+        const nextVol = getSoundVolume();
+        if (!nextEnabled || nextVol <= 0) {
+          stopAnimalSound();
+          opts?.onEnd?.();
+          return;
+        }
+        audio.volume = Math.min(1, Math.max(0.05, nextVol * 0.92));
+      });
+
+      let started = false;
       let settled = false;
+
+      const markStarted = () => {
+        if (started || settled || seqId !== playbackSequenceId) return;
+        started = true;
+        opts?.onStart?.();
+      };
+
       const finishOnce = () => {
         if (settled) return;
         settled = true;
@@ -468,18 +614,64 @@ export function playAnimalSound(
           clearTimeout(activeTimer);
           activeTimer = null;
         }
+        detachAudioListeners(audio);
         handleSoundFinished();
       };
 
-      const fallbackOnce = () => {
+      const handlePlaybackFailure = (err?: unknown) => {
         if (settled || seqId !== playbackSequenceId) return;
         settled = true;
+        if (activeTimer) {
+          clearTimeout(activeTimer);
+          activeTimer = null;
+        }
+        if (activeAudioUnsub) {
+          activeAudioUnsub();
+          activeAudioUnsub = null;
+        }
+        detachAudioListeners(audio);
         activeAudioElement = null;
-        playFallbackBioAcousticAnimalSound(meta.key, volume, handleSoundFinished);
+
+        const errName =
+          err && typeof err === "object" && "name" in err
+            ? String((err as { name?: unknown }).name)
+            : "";
+
+        if (errName === "NotAllowedError" || errName === "AbortError") {
+          opts?.onBlocked?.();
+          opts?.onEnd?.();
+          return;
+        }
+
+        console.warn(
+          `[LittleSteps Audio] Failed to load/play ${meta.audioSrc}`,
+          err
+        );
+        opts?.onError?.(
+          "Could not load this animal sound. Please check your connection and tap Replay."
+        );
+        opts?.onEnd?.();
       };
 
+      if (audio.readyState < 3) {
+        opts?.onLoading?.();
+      }
+
+      audio.onplaying = markStarted;
       audio.onended = finishOnce;
-      audio.onerror = fallbackOnce;
+      audio.onerror = () => handlePlaybackFailure(audio.error);
+
+      const scheduleSafetyTimeout = () => {
+        const knownDuration =
+          Number.isFinite(audio.duration) && audio.duration > 0
+            ? Math.round(audio.duration * 1000)
+            : meta.durationMs;
+        if (activeTimer) clearTimeout(activeTimer);
+        activeTimer = setTimeout(
+          finishOnce,
+          Math.max(meta.durationMs, knownDuration) + 1500
+        );
+      };
 
       const playPromise = audio.play();
       if (playPromise && typeof playPromise.then === "function") {
@@ -489,20 +681,31 @@ export function playAnimalSound(
               audio.pause();
               return;
             }
-            activeTimer = setTimeout(finishOnce, meta.durationMs + 350);
+            markStarted();
+            scheduleSafetyTimeout();
           })
-          .catch(fallbackOnce);
+          .catch((err) => handlePlaybackFailure(err));
         return true;
       }
 
-      activeTimer = setTimeout(finishOnce, meta.durationMs + 350);
+      markStarted();
+      scheduleSafetyTimeout();
       return true;
-    } catch {
-      playFallbackBioAcousticAnimalSound(meta.key, volume, handleSoundFinished);
-      return true;
+    } catch (err) {
+      console.warn(
+        `[LittleSteps Audio] Unexpected audio error for ${meta.audioSrc}`,
+        err
+      );
+      opts?.onError?.(
+        "Could not play this animal sound. Please tap Replay to try again."
+      );
+      opts?.onEnd?.();
+      return false;
     }
   }
 
-  playFallbackBioAcousticAnimalSound(meta.key, volume, handleSoundFinished);
+  // Deterministic timing path for headless Jest test runs (never uses TTS to fake sounds)
+  opts?.onStart?.();
+  activeTimer = setTimeout(handleSoundFinished, 220);
   return true;
 }

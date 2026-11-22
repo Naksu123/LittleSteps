@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import {
@@ -11,6 +12,7 @@ import {
   Layers,
   Plus,
   Trash2,
+  Volume2,
 } from "lucide-react";
 import { formatShortDate } from "@/lib/utils";
 import {
@@ -18,6 +20,7 @@ import {
   type AdminCreateSubjectFormValues,
 } from "@/lib/validation";
 import { adminApi, ApiError } from "@/services/api";
+import { AnimalAudioAuditPanel } from "@/components/admin/AnimalAudioAuditPanel";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Alert } from "@/components/ui/alert";
@@ -640,6 +643,21 @@ function AdminContentStoragePageContent() {
               )}
             </CardContent>
           </Card>
+
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-bold text-[#24334D]/65">
+                Pre-publish Audio QA Workflow
+              </p>
+              <Link href="/admin/audio-audit">
+                <Button variant="outline" size="sm">
+                  <Volume2 className="h-4 w-4" />
+                  Open Full Audio QA Studio
+                </Button>
+              </Link>
+            </div>
+            <AnimalAudioAuditPanel />
+          </div>
         </>
       )}
     </PortalShell>

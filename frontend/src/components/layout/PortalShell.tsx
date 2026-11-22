@@ -225,7 +225,7 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
 
   function handleNavIntent(href: string) {
     router.prefetch?.(href);
-    prefetchPortalData(href, activeChildId ?? null);
+    prefetchPortalData?.(href, activeChildId ?? null);
   }
 
   function handleNavClick(href: string) {

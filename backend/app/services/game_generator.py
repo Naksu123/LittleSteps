@@ -130,10 +130,12 @@ ANIMAL_SOUND_BANK = [
     ("owl", "🦉", "Owl", "Hoo hoo!"),
     ("bee", "🐝", "Bee", "Buzz buzz!"),
     ("chick", "🐥", "Chick", "Cheep cheep!"),
+    ("chicken", "🐔", "Chicken", "Cluck cluck!"),
     ("horse", "🐴", "Horse", "Neigh!"),
     ("goat", "🐐", "Goat", "Maa maa!"),
     ("elephant", "🐘", "Elephant", "Pawoo!"),
     ("rooster", "🐓", "Rooster", "Cock-a-doodle-doo!"),
+    ("monkey", "🐵", "Monkey", "Ooh ooh aah aah!"),
 ]
 
 VOCAB_BANK = [

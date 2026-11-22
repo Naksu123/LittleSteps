@@ -11,7 +11,7 @@ import {
   type GameDifficulty,
 } from "@/lib/gameDifficulty";
 import { starsForScore } from "@/lib/gameScoring";
-import { playChime } from "@/lib/sound";
+import { getSharedAudioContext, playChime } from "@/lib/sound";
 import { speak } from "@/lib/speech";
 import { cn } from "@/lib/utils";
 import { progressApi } from "@/services/api";
@@ -206,7 +206,10 @@ export function GamePlayer({
               type="button"
               variant="kids"
               size="kid"
-              onClick={() => setStarted(true)}
+              onClick={() => {
+                getSharedAudioContext();
+                setStarted(true);
+              }}
               className="w-full sm:w-auto"
             >
               <Play className="h-5 w-5" />

@@ -1,5 +1,8 @@
+import fs from "fs";
+import path from "path";
 import {
   ANIMAL_SOUND_CATALOG,
+  ANIMAL_SOUND_LIST,
   getAnimalSoundMeta,
   playAnimalSound,
   resolveAnimalKey,
@@ -87,7 +90,7 @@ describe("Animal sound effects catalog & playback", () => {
     stopAnimalSound();
   });
 
-  it("maps all required animals to real .wav audio assets", () => {
+  it("maps all 18 required animals to real mastered .mp3 audio assets on disk with no legacy .wav files", () => {
     const requiredAnimals = [
       "dog",
       "cat",
@@ -103,21 +106,37 @@ describe("Animal sound effects catalog & playback", () => {
       "owl",
       "bee",
       "chick",
+      "chicken",
       "goat",
       "rooster",
+      "monkey",
     ] as const;
+
+    const audioDir = path.resolve(process.cwd(), "public/sounds/animals");
+    const filesInDir = fs.readdirSync(audioDir);
+    expect(filesInDir.filter((f) => f.endsWith(".wav"))).toEqual([]);
+    expect(ANIMAL_SOUND_LIST).toHaveLength(18);
 
     for (const animal of requiredAnimals) {
       expect(resolveAnimalKey(animal)).toBe(animal);
       const meta = getAnimalSoundMeta(animal);
       expect(meta).not.toBeNull();
-      expect(meta?.audioSrc).toBe(`/sounds/animals/${animal}.wav`);
+      expect(meta?.audioSrc).toBe(`/sounds/animals/${animal}.mp3`);
+      expect(meta?.verified).toBe(true);
       expect(ANIMAL_SOUND_CATALOG[animal].label.length).toBeGreaterThan(1);
+
+      const filePath = path.join(audioDir, `${animal}.mp3`);
+      expect(fs.existsSync(filePath)).toBe(true);
+      expect(fs.statSync(filePath).size).toBeGreaterThan(5000);
     }
 
     expect(resolveAnimalKey("Moo moo!")).toBe("cow");
     expect(resolveAnimalKey("Woof woof!")).toBe("dog");
     expect(resolveAnimalKey("Pawoo!")).toBe("elephant");
+    expect(resolveAnimalKey("Cluck cluck!")).toBe("chicken");
+    expect(resolveAnimalKey("Hen")).toBe("chicken");
+    expect(resolveAnimalKey("Cheep cheep!")).toBe("chick");
+    expect(resolveAnimalKey("Ooh ooh aah aah!")).toBe("monkey");
   });
 
   it("respects mute and volume settings and plays animal sound cleanly", () => {

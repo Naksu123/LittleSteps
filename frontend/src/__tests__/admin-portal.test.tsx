@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   adminCreateClassSchema,
   adminCreateSubjectSchema,
   adminCreateUserSchema,
 } from "@/lib/validation";
+import { AnimalAudioAuditPanel } from "@/components/admin/AnimalAudioAuditPanel";
 import AdminPage from "@/app/admin/page";
 
 const systemHealthMock = jest.fn();
@@ -162,5 +163,45 @@ describe("Admin Portal validation schemas & console", () => {
     expect(screen.getByText("Storage: local")).toBeInTheDocument();
     expect(screen.getByText("2.0 KB")).toBeInTheDocument();
     expect(screen.getByText("admin.setting_updated")).toBeInTheDocument();
+  });
+
+  it("renders AnimalAudioAuditPanel with search, audition trigger, and QA flag controls", () => {
+    window.localStorage.clear();
+    render(<AnimalAudioAuditPanel />);
+
+    expect(
+      screen.getByText(/Animal Audio QA & Preview Studio/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Play All \(18\)/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Verify All 18 Audio Files" })
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Play Monkey sound" })
+    );
+    expect(
+      screen.getByRole("button", { name: "Stop Monkey sound" })
+    ).toBeInTheDocument();
+
+    const flagBtn = screen.getByRole("button", {
+      name: "Toggle QA flag for Sheep",
+    });
+    expect(flagBtn).toHaveTextContent("Verified Clear");
+    fireEvent.click(flagBtn);
+    expect(flagBtn).toHaveTextContent("Flagged: Distant/Fix");
+
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Search animal sounds" }),
+      { target: { value: "chicken" } }
+    );
+    expect(
+      screen.getByRole("button", { name: "Play Chicken sound" })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Play Dog sound" })
+    ).not.toBeInTheDocument();
   });
 });

@@ -1,0 +1,24 @@
+# LittleSteps Animal Audio Library Audit & Attribution
+
+All 18 animal clips in `frontend/public/sounds/animals/*.mp3` were sourced from authentic open-licensed field and farm recordings, trimmed to crisp close-up vocalizations, converted to mono 44.1 kHz 128 kbps MP3, high-pass filtered, and two-pass EBU R128 loudness-normalized (`-16 LUFS` target, `-1.5 dBTP` max true peak) for consistent, child-safe playback across mobile, tablet, laptop, and headphones.
+
+| Animal | File | Duration | Loudness | True Peak | Size | Source & Title | License | Attribution | Page URL |
+|---|---|---:|---:|---:|---:|---|---|---|---|
+| `dog` | `/sounds/animals/dog.mp3` | 2400 ms | -16.9 LUFS | -1.9 dBTP | 38.4 KB | BigSoundBank: Small dog barking (#0612) | CC0 1.0 Public Domain | BigSoundBank (CC0) | https://bigsoundbank.com/small-dog-barking-s0612.html |
+| `cat` | `/sounds/animals/cat.mp3` | 2200 ms | -16.5 LUFS | -1.9 dBTP | 35.6 KB | BigSoundBank: Small mewing of a cat (#0098) | CC0 1.0 Public Domain | BigSoundBank (CC0) | https://bigsoundbank.com/small-mewing-of-a-cat-s0098.html |
+| `cow` | `/sounds/animals/cow.mp3` | 1750 ms | -16.4 LUFS | -5.2 dBTP | 28.2 KB | BigSoundBank: Cow moos (#0546) | CC0 1.0 Public Domain | BigSoundBank (CC0) | https://bigsoundbank.com/cow-moos-s0546.html |
+| `duck` | `/sounds/animals/duck.mp3` | 2200 ms | -16.7 LUFS | -1.9 dBTP | 35.6 KB | BigSoundBank: Ducks (#0276) | CC0 1.0 Public Domain | BigSoundBank (CC0) | https://bigsoundbank.com/ducks-s0276.html |
+| `lion` | `/sounds/animals/lion.mp3` | 2600 ms | -16.4 LUFS | -7.7 dBTP | 41.7 KB | Wikimedia Commons: Lion roaring (Tamil Nadu) | Public Domain | Wikimedia Commons (Public Domain) | https://commons.wikimedia.org/wiki/File:Lion_raring-sound1TamilNadu178.ogg |
+| `elephant` | `/sounds/animals/elephant.mp3` | 1440 ms | -16.4 LUFS | -3.3 dBTP | 23.3 KB | Wikimedia Commons: Elephant voice - trumpeting | CC0 1.0 Public Domain | Wikimedia Commons (CC0) | https://commons.wikimedia.org/wiki/File:Elephant_voice_-_trumpeting.ogg |
+| `bird` | `/sounds/animals/bird.mp3` | 2200 ms | -16.5 LUFS | -3.2 dBTP | 35.6 KB | BigSoundBank: Young bird chirping (#0692) | CC0 1.0 Public Domain | BigSoundBank (CC0) | https://bigsoundbank.com/young-bird-s0692.html |
+| `sheep` | `/sounds/animals/sheep.mp3` | 2100 ms | -16.4 LUFS | -5.2 dBTP | 33.9 KB | Wikimedia Commons: Corner of a sheep field in summer | Public Domain | Wikimedia Commons (Public Domain) | https://commons.wikimedia.org/wiki/File:Corner_of_a_sheep_field_in_summer.ogg |
+| `goat` | `/sounds/animals/goat.mp3` | 2100 ms | -18.6 LUFS | -1.8 dBTP | 33.9 KB | BigSoundBank: Dwarf goat bleating (#0880) | CC0 1.0 Public Domain | BigSoundBank (CC0) | https://bigsoundbank.com/dwarf-goat-bleating-s0880.html |
+| `horse` | `/sounds/animals/horse.mp3` | 1550 ms | -16.4 LUFS | -2.1 dBTP | 25.4 KB | BigSoundBank: Neighing of a horse (#0284) | CC0 1.0 Public Domain | BigSoundBank (CC0) | https://bigsoundbank.com/neighing-of-a-horse-1-s0284.html |
+| `pig` | `/sounds/animals/pig.mp3` | 1390 ms | -16.5 LUFS | -3.6 dBTP | 22.9 KB | Wikimedia Commons: Pig grunt (Erdie) + Mudchute pigs 1 & 2 | CC BY 3.0 / CC BY-SA 3.0 | erdie & Secretlondon / Wikimedia Commons | https://commons.wikimedia.org/wiki/File:Pig_grunt_-_Erdie.ogg |
+| `frog` | `/sounds/animals/frog.mp3` | 2200 ms | -16.8 LUFS | -1.9 dBTP | 35.6 KB | BigSoundBank: Frogs croaking (#0998) | CC0 1.0 Public Domain | BigSoundBank (CC0) | https://bigsoundbank.com/frogs-2-s0998.html |
+| `owl` | `/sounds/animals/owl.mp3` | 1300 ms | -16.4 LUFS | -6.6 dBTP | 21.3 KB | BigSoundBank: Tawny owl hooting (#1763) | CC0 1.0 Public Domain | BigSoundBank (CC0) | https://bigsoundbank.com/tawny-owl-1-s1763.html |
+| `bee` | `/sounds/animals/bee.mp3` | 2000 ms | -16.4 LUFS | -4.2 dBTP | 32.3 KB | BigSoundBank: Bumblebee buzzing (#1001) | CC0 1.0 Public Domain | BigSoundBank (CC0) | https://bigsoundbank.com/bumblebee-2-s1001.html |
+| `chick` | `/sounds/animals/chick.mp3` | 2000 ms | -16.4 LUFS | -2.8 dBTP | 32.3 KB | BigSoundBank: Chick that chirps (#0672) | CC0 1.0 Public Domain | BigSoundBank (CC0) | https://bigsoundbank.com/chick-that-chirp-s0672.html |
+| `chicken` | `/sounds/animals/chicken.mp3` | 2200 ms | -16.4 LUFS | -5.0 dBTP | 35.6 KB | Wikimedia Commons: Hen announcing she has laid an egg | Public Domain | alys / Wikimedia Commons (Public Domain) | https://commons.wikimedia.org/wiki/File:Hen_announcing_shes_lain_an_egg.ogg |
+| `rooster` | `/sounds/animals/rooster.mp3` | 2500 ms | -16.4 LUFS | -5.6 dBTP | 40.1 KB | BigSoundBank: Rooster crowing (#0104) | CC0 1.0 Public Domain | BigSoundBank (CC0) | https://bigsoundbank.com/rooster-s0104.html |
+| `monkey` | `/sounds/animals/monkey.mp3` | 2400 ms | -16.4 LUFS | -5.0 dBTP | 38.4 KB | Wikimedia Commons: Pant-hoot call made by male chimpanzee | CC BY 4.0 | Pawel Fedurek et al. / Wikimedia Commons | https://commons.wikimedia.org/wiki/File:Pant-hoot_call_made_by_a_male_chimpanzee.ogg |

@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  AGE_GROUP_VALUES,
+  getPreschoolBirthYearBounds,
+} from "@/lib/preschoolAges";
 
 export const loginSchema = z.object({
   email: z.string().trim().email("Please enter a valid email address."),
@@ -41,18 +45,27 @@ export const registerSchema = z
 
 export type RegisterFormValues = z.infer<typeof registerSchema>;
 
+const dynamicBirthYearSchema = z.coerce
+  .number()
+  .int()
+  .superRefine((year, ctx) => {
+    const { minYear, maxYear } = getPreschoolBirthYearBounds();
+    if (year < minYear || year > maxYear) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Birth year must be between ${minYear} and ${maxYear} for Pre-School learners.`,
+      });
+    }
+  });
+
 export const addChildSchema = z.object({
   display_name: z
     .string()
     .trim()
     .min(1, "Please enter your child's first name or nickname.")
     .max(80),
-  birth_year: z.coerce
-    .number()
-    .int()
-    .min(2018, "Birth year must be 2018 or later.")
-    .max(2024, "Birth year must be 2024 or earlier."),
-  age_group: z.enum(["4-5", "5-6", "4-6"]),
+  birth_year: dynamicBirthYearSchema,
+  age_group: z.enum(AGE_GROUP_VALUES),
   avatar_key: z.string().min(1),
   favorite_color: z.string().min(4),
   daily_goal_minutes: z.coerce.number().int().min(5).max(120),
@@ -66,7 +79,8 @@ export const editChildSchema = z.object({
     .trim()
     .min(1, "Please enter your child's first name or nickname.")
     .max(80),
-  age_group: z.enum(["4-5", "5-6", "4-6"]),
+  birth_year: dynamicBirthYearSchema.optional(),
+  age_group: z.enum(AGE_GROUP_VALUES),
   avatar_key: z.string().min(1),
   favorite_color: z.string().min(4),
   daily_goal_minutes: z.coerce.number().int().min(5).max(120),
@@ -128,7 +142,7 @@ export const createLessonSchema = z.object({
     .trim()
     .min(2, "Please enter a brief summary.")
     .max(1000),
-  age_group: z.enum(["4-5", "5-6", "4-6"]),
+  age_group: z.enum(AGE_GROUP_VALUES),
   estimated_minutes: z.coerce.number().int().min(3).max(60),
   audio_narration_text: z.string().max(1500).optional(),
   status: z.enum(["draft", "published"]),
@@ -227,7 +241,7 @@ export const adminCreateClassSchema = z.object({
     .trim()
     .min(2, "Please enter a class name.")
     .max(120),
-  age_group: z.enum(["4-5", "5-6", "4-6"]),
+  age_group: z.enum(AGE_GROUP_VALUES),
   academic_year: z
     .string()
     .trim()

@@ -79,7 +79,7 @@ class Lesson(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     title: Mapped[str] = mapped_column(String(160), nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     content_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
-    age_group: Mapped[str] = mapped_column(String(20), default="4-6", nullable=False)
+    age_group: Mapped[str] = mapped_column(String(20), default="Pre-School", nullable=False)
     estimated_minutes: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     audio_narration_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="published", index=True, nullable=False)
@@ -193,7 +193,7 @@ class Worksheet(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     title: Mapped[str] = mapped_column(String(150), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     storage_key: Mapped[str] = mapped_column(String(255), nullable=False)
-    age_group: Mapped[str] = mapped_column(String(20), default="4-6", nullable=False)
+    age_group: Mapped[str] = mapped_column(String(20), default="Pre-School", nullable=False)
 
     theme: Mapped["Theme"] = relationship(back_populates="worksheets")
 

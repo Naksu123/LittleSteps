@@ -70,7 +70,7 @@ def create_app() -> FastAPI:
     is_production = settings.APP_ENV.lower() == "production"
     application = FastAPI(
         title=settings.APP_NAME,
-        description="Cloud-Based Kindergarten Learning Management System API (Ages 4–6)",
+        description="Cloud-Based Pre-School Learning Management System API",
         version="0.1.0",
         docs_url=None if is_production else "/docs",
         redoc_url=None if is_production else "/redoc",

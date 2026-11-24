@@ -181,8 +181,8 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
             TeacherProfile(
                 user_id=teacher_user.id,
                 employee_code="TCH-2026-01",
-                specialization="Kindergarten Play-Based Learning",
-                bio="Dedicated early childhood educator helping ages 4-6 thrive through play.",
+                specialization="Pre-School Play-Based Learning",
+                bio="Dedicated early childhood educator helping Pre-School learners thrive through play.",
             )
         )
 
@@ -548,7 +548,7 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
                 title=title,
                 summary=summary,
                 content_json=content_payload,
-                age_group="4-6",
+                age_group="Pre-School",
                 estimated_minutes=mins,
                 audio_narration_text=narration,
                 status="published",
@@ -679,7 +679,7 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
                     title=w_title,
                     description=w_desc,
                     storage_key=w_key,
-                    age_group="4-6",
+                    age_group="Pre-School",
                 )
             )
 

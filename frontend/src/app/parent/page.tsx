@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,7 +24,16 @@ import {
   Star,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { formatShortDate } from "@/lib/utils";
+import {
+  AGE_GROUP_VALUES,
+  clampPreschoolAge,
+  getAgeGroupForPreschoolAge,
+  getPreschoolAgeOptions,
+  getPreschoolBirthYearBounds,
+  inferPreschoolAgeFromChild,
+  type AgeGroupValue,
+} from "@/lib/preschoolAges";
+import { formatAgeGroupLabel, formatShortDate } from "@/lib/utils";
 import {
   addChildSchema,
   editChildSchema,
@@ -140,17 +149,31 @@ function ParentPortalContent() {
     };
   }, [targetChildId, primaryChildId, dashboard]);
 
+  const currentYear = new Date().getFullYear();
+  const preschoolAgeOptions = useMemo(
+    () => getPreschoolAgeOptions(currentYear),
+    [currentYear]
+  );
+  const birthYearBounds = useMemo(
+    () => getPreschoolBirthYearBounds(currentYear),
+    [currentYear]
+  );
+  const defaultAgeOption =
+    preschoolAgeOptions.find((opt) => opt.age === 4) || preschoolAgeOptions[0];
+
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<AddChildFormValues>({
     resolver: zodResolver(addChildSchema),
     defaultValues: {
       display_name: "",
-      birth_year: 2021,
-      age_group: "4-5",
+      birth_year: defaultAgeOption.birthYear,
+      age_group: defaultAgeOption.ageGroup,
       avatar_key: "bunny",
       favorite_color: "#78C8F5",
       daily_goal_minutes: 20,
@@ -161,16 +184,43 @@ function ParentPortalContent() {
     register: registerEdit,
     handleSubmit: handleEditSubmit,
     reset: resetEdit,
+    setValue: setEditValue,
+    watch: watchEdit,
     formState: { errors: editErrors, isSubmitting: isEditing },
   } = useForm<EditChildFormValues>({
     resolver: zodResolver(editChildSchema),
   });
 
+  const watchedAddBirthYear = watch("birth_year");
+  const selectedAddAge = clampPreschoolAge(
+    currentYear - (Number(watchedAddBirthYear) || defaultAgeOption.birthYear)
+  );
+  const activeAddPreset =
+    preschoolAgeOptions.find((o) => o.age === selectedAddAge) || defaultAgeOption;
+
+  const watchedEditBirthYear = watchEdit("birth_year");
+  const selectedEditAge = clampPreschoolAge(
+    currentYear -
+      (Number(watchedEditBirthYear) ||
+        activeItem?.child.birth_year ||
+        defaultAgeOption.birthYear)
+  );
+  const activeEditPreset =
+    preschoolAgeOptions.find((o) => o.age === selectedEditAge) || defaultAgeOption;
+
   function openEditModal() {
     if (!activeItem) return;
+    const rawGroup = activeItem.child.age_group;
+    const validGroup = (AGE_GROUP_VALUES as readonly string[]).includes(rawGroup)
+      ? (rawGroup as AgeGroupValue)
+      : getAgeGroupForPreschoolAge(inferPreschoolAgeFromChild(activeItem.child, currentYear));
+    const fallbackBirthYear =
+      activeItem.child.birth_year ??
+      currentYear - inferPreschoolAgeFromChild(activeItem.child, currentYear);
     resetEdit({
       display_name: activeItem.child.display_name,
-      age_group: (activeItem.child.age_group as "4-5" | "5-6" | "4-6") || "4-5",
+      birth_year: fallbackBirthYear,
+      age_group: validGroup,
       avatar_key: activeItem.child.avatar_key,
       favorite_color: activeItem.child.favorite_color,
       daily_goal_minutes: activeItem.child.daily_goal_minutes ?? 20,
@@ -185,10 +235,16 @@ function ParentPortalContent() {
       const savedDraft = window.sessionStorage.getItem(ADD_CHILD_DRAFT_KEY);
       if (savedDraft) {
         const parsed = JSON.parse(savedDraft) as Partial<AddChildFormValues>;
+        const draftBirthYear = parsed.birth_year || defaultAgeOption.birthYear;
+        const draftGroup =
+          parsed.age_group &&
+          (AGE_GROUP_VALUES as readonly string[]).includes(parsed.age_group)
+            ? (parsed.age_group as AgeGroupValue)
+            : getAgeGroupForPreschoolAge(currentYear - draftBirthYear);
         reset({
           display_name: parsed.display_name || "",
-          birth_year: parsed.birth_year || 2021,
-          age_group: parsed.age_group || "4-5",
+          birth_year: draftBirthYear,
+          age_group: draftGroup,
           avatar_key: parsed.avatar_key || "bunny",
           favorite_color: parsed.favorite_color || "#78C8F5",
           daily_goal_minutes: parsed.daily_goal_minutes || 20,
@@ -198,7 +254,7 @@ function ParentPortalContent() {
     } catch {
       // Ignore draft parse errors
     }
-  }, [reset]);
+  }, [currentYear, defaultAgeOption.birthYear, reset]);
 
   async function handleAddChild(values: AddChildFormValues) {
     if (submittingChildRef.current) return;
@@ -225,8 +281,8 @@ function ParentPortalContent() {
       setActiveChildId(created.id);
       reset({
         display_name: "",
-        birth_year: 2021,
-        age_group: "4-5",
+        birth_year: defaultAgeOption.birthYear,
+        age_group: defaultAgeOption.ageGroup,
         avatar_key: "bunny",
         favorite_color: "#78C8F5",
         daily_goal_minutes: 20,
@@ -512,7 +568,8 @@ function ParentPortalContent() {
                   size="sm"
                 />
                 <span>
-                  {item.child.display_name} ({item.child.age_group})
+                  {item.child.display_name} (
+                  {formatAgeGroupLabel(item.child.age_group, item.child.birth_year)})
                 </span>
               </button>
             );
@@ -906,29 +963,72 @@ function ParentPortalContent() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label htmlFor="birth_year" className="text-sm font-bold">
-                Birth Year
-              </label>
-              <Input
-                id="birth_year"
-                type="number"
-                {...register("birth_year")}
-              />
+          <div className="space-y-3 rounded-2xl bg-[#FFF9F0] p-3.5 border border-[#24334D]/10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label htmlFor="child_age" className="text-sm font-bold">
+                  Child&apos;s Age (Pre-School)
+                </label>
+                <select
+                  id="child_age"
+                  value={selectedAddAge}
+                  onChange={(e) => {
+                    const nextAge = Number(e.target.value);
+                    const opt = preschoolAgeOptions.find((o) => o.age === nextAge);
+                    if (opt) {
+                      setValue("birth_year", opt.birthYear, { shouldValidate: true });
+                      setValue("age_group", opt.ageGroup, { shouldValidate: true });
+                    }
+                  }}
+                  className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
+                >
+                  {preschoolAgeOptions.map((opt) => (
+                    <option key={opt.age} value={opt.age}>
+                      {opt.label} ({opt.stageLabel})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="birth_year" className="text-sm font-bold">
+                  Birth Year
+                </label>
+                <Input
+                  id="birth_year"
+                  type="number"
+                  min={birthYearBounds.minYear}
+                  max={birthYearBounds.maxYear}
+                  {...register("birth_year", {
+                    onChange: (e) => {
+                      const yr = Number(e.target.value);
+                      if (
+                        Number.isFinite(yr) &&
+                        yr >= birthYearBounds.minYear &&
+                        yr <= birthYearBounds.maxYear
+                      ) {
+                        setValue(
+                          "age_group",
+                          getAgeGroupForPreschoolAge(currentYear - yr),
+                          { shouldValidate: true }
+                        );
+                      }
+                    },
+                  })}
+                />
+                {errors.birth_year && (
+                  <p className="text-xs font-bold text-[#8E3022]">
+                    {errors.birth_year.message}
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="space-y-1">
-              <label htmlFor="age_group" className="text-sm font-bold">
-                Age Group
-              </label>
-              <select
-                id="age_group"
-                className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
-                {...register("age_group")}
-              >
-                <option value="4-5">Ages 4–5</option>
-                <option value="5-6">Ages 5–6</option>
-              </select>
+
+            <input type="hidden" {...register("age_group")} />
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-[#24334D]/75">
+              <span>
+                Level: <strong className="text-[#175B82]">{activeAddPreset.stageLabel}</strong> (Born {activeAddPreset.birthYear})
+              </span>
+              <Badge variant="sky">{activeAddPreset.modeHint}</Badge>
             </div>
           </div>
 
@@ -1006,20 +1106,76 @@ function ParentPortalContent() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label htmlFor="edit_age_group" className="text-sm font-bold">
-                Age Group
-              </label>
-              <select
-                id="edit_age_group"
-                className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
-                {...registerEdit("age_group")}
-              >
-                <option value="4-5">Ages 4–5</option>
-                <option value="5-6">Ages 5–6</option>
-              </select>
+          <div className="space-y-3 rounded-2xl bg-[#FFF9F0] p-3.5 border border-[#24334D]/10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label htmlFor="edit_child_age" className="text-sm font-bold">
+                  Child&apos;s Age (Pre-School)
+                </label>
+                <select
+                  id="edit_child_age"
+                  value={selectedEditAge}
+                  onChange={(e) => {
+                    const nextAge = Number(e.target.value);
+                    const opt = preschoolAgeOptions.find((o) => o.age === nextAge);
+                    if (opt) {
+                      setEditValue("birth_year", opt.birthYear, { shouldValidate: true });
+                      setEditValue("age_group", opt.ageGroup, { shouldValidate: true });
+                    }
+                  }}
+                  className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
+                >
+                  {preschoolAgeOptions.map((opt) => (
+                    <option key={opt.age} value={opt.age}>
+                      {opt.label} ({opt.stageLabel})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="edit_birth_year" className="text-sm font-bold">
+                  Birth Year
+                </label>
+                <Input
+                  id="edit_birth_year"
+                  type="number"
+                  min={birthYearBounds.minYear}
+                  max={birthYearBounds.maxYear}
+                  {...registerEdit("birth_year", {
+                    onChange: (e) => {
+                      const yr = Number(e.target.value);
+                      if (
+                        Number.isFinite(yr) &&
+                        yr >= birthYearBounds.minYear &&
+                        yr <= birthYearBounds.maxYear
+                      ) {
+                        setEditValue(
+                          "age_group",
+                          getAgeGroupForPreschoolAge(currentYear - yr),
+                          { shouldValidate: true }
+                        );
+                      }
+                    },
+                  })}
+                />
+                {editErrors.birth_year && (
+                  <p className="text-xs font-bold text-[#8E3022]">
+                    {editErrors.birth_year.message}
+                  </p>
+                )}
+              </div>
             </div>
+
+            <input type="hidden" {...registerEdit("age_group")} />
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-[#24334D]/75">
+              <span>
+                Level: <strong className="text-[#175B82]">{activeEditPreset.stageLabel}</strong> (Born {activeEditPreset.birthYear})
+              </span>
+              <Badge variant="sky">{activeEditPreset.modeHint}</Badge>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <label htmlFor="edit_avatar_key" className="text-sm font-bold">
                 Avatar Friend
@@ -1036,17 +1192,16 @@ function ParentPortalContent() {
                 <option value="owl">🦉 Owl</option>
               </select>
             </div>
-          </div>
-
-          <div className="space-y-1">
-            <label htmlFor="edit_daily_goal" className="text-sm font-bold">
-              Daily Goal (minutes)
-            </label>
-            <Input
-              id="edit_daily_goal"
-              type="number"
-              {...registerEdit("daily_goal_minutes")}
-            />
+            <div className="space-y-1">
+              <label htmlFor="edit_daily_goal" className="text-sm font-bold">
+                Daily Goal (minutes)
+              </label>
+              <Input
+                id="edit_daily_goal"
+                type="number"
+                {...registerEdit("daily_goal_minutes")}
+              />
+            </div>
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">

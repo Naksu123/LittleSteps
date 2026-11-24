@@ -4,6 +4,11 @@ import {
   getMemoryPeekMs,
 } from "@/lib/gameDifficulty";
 import { generateGrownUpChallenge } from "@/lib/grownUpGate";
+import {
+  formatAgeGroupLabel,
+  getAgeGroupForPreschoolAge,
+  getPreschoolAgeOptions,
+} from "@/lib/preschoolAges";
 import type {
   ChoiceConfig,
   MemoryConfig,
@@ -69,6 +74,20 @@ describe("Age-adaptive game modes & dynamic Grown-Up Gate", () => {
     expect(getDefaultDifficultyForChild({ age_group: "4-5", birth_year: year - 5 })).toBe("medium");
     expect(getDefaultDifficultyForChild({ age_group: "5-6", birth_year: year - 6 })).toBe("hard");
     expect(getDefaultDifficultyForChild({ age_group: "4-6" })).toBe("medium");
+    expect(getDefaultDifficultyForChild({ age_group: "Pre-School" })).toBe("medium");
+
+    expect(formatAgeGroupLabel("4-6")).toBe("Pre-School");
+    expect(formatAgeGroupLabel("Pre-School")).toBe("Pre-School");
+    expect(formatAgeGroupLabel("4-5", year - 4, year)).toBe("Pre-School · Age 4");
+    expect(getAgeGroupForPreschoolAge(3)).toBe("3-4");
+    expect(getAgeGroupForPreschoolAge(4)).toBe("4-5");
+    expect(getAgeGroupForPreschoolAge(5)).toBe("5-6");
+    expect(getPreschoolAgeOptions(year).map((o) => [o.age, o.birthYear])).toEqual([
+      [3, year - 3],
+      [4, year - 4],
+      [5, year - 5],
+      [6, year - 6],
+    ]);
   });
 
   it("scales 12-question Choice and Sort, Memory, and Puzzle configs across Normal, Medium, and Hard", () => {

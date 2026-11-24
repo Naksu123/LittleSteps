@@ -1,24 +1,65 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+AGE_GROUP_PATTERN = r"^(Pre-School|3-4|4-5|5-6|4-6|[3-6])$"
+
+
+def _validate_preschool_birth_year(v: int) -> int:
+    current_year = date.today().year
+    min_year = current_year - 8
+    max_year = current_year - 2
+    if v < min_year or v > max_year:
+        raise ValueError(
+            f"Birth year must be between {min_year} and {max_year} for Pre-School learners."
+        )
+    return v
+
+
+def derive_age_group_from_birth_year(birth_year: int) -> str:
+    age = date.today().year - birth_year
+    if age <= 3:
+        return "3-4"
+    if age == 4:
+        return "4-5"
+    return "5-6"
 
 
 class ChildCreate(BaseModel):
     display_name: str = Field(min_length=1, max_length=80)
-    birth_year: int = Field(ge=2018, le=2024)
-    age_group: str = Field(default="4-5", pattern="^(4-5|5-6|4-6)$")
+    birth_year: int
+    age_group: Optional[str] = Field(default=None, pattern=AGE_GROUP_PATTERN)
     avatar_key: str = Field(default="bunny", max_length=50)
     favorite_color: str = Field(default="#78C8F5", max_length=20)
     daily_goal_minutes: int = Field(default=20, ge=5, le=120)
 
+    @field_validator("birth_year")
+    @classmethod
+    def check_birth_year(cls, v: int) -> int:
+        return _validate_preschool_birth_year(v)
+
+    @model_validator(mode="after")
+    def populate_age_group(self) -> "ChildCreate":
+        if not self.age_group:
+            self.age_group = derive_age_group_from_birth_year(self.birth_year)
+        return self
+
 
 class ChildUpdate(BaseModel):
     display_name: Optional[str] = Field(default=None, min_length=1, max_length=80)
-    age_group: Optional[str] = Field(default=None, pattern="^(4-5|5-6|4-6)$")
+    birth_year: Optional[int] = None
+    age_group: Optional[str] = Field(default=None, pattern=AGE_GROUP_PATTERN)
     avatar_key: Optional[str] = Field(default=None, max_length=50)
     favorite_color: Optional[str] = Field(default=None, max_length=20)
     daily_goal_minutes: Optional[int] = Field(default=None, ge=5, le=120)
+
+    @field_validator("birth_year")
+    @classmethod
+    def check_birth_year(cls, v: Optional[int]) -> Optional[int]:
+        if v is None:
+            return None
+        return _validate_preschool_birth_year(v)
 
 
 class ChildOut(BaseModel):

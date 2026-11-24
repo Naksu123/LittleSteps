@@ -259,7 +259,7 @@ class TeacherLessonCreate(BaseModel):
     subject_id: str
     theme_id: Optional[str] = None
     summary: str = Field(min_length=2, max_length=1000)
-    age_group: Literal["4-5", "5-6", "4-6"] = "4-6"
+    age_group: Literal["Pre-School", "3-4", "4-5", "5-6", "4-6"] = "Pre-School"
     estimated_minutes: int = Field(default=10, ge=3, le=60)
     audio_narration_text: Optional[str] = Field(default=None, max_length=1500)
     status: Literal["draft", "published", "archived"] = "published"
@@ -271,7 +271,7 @@ class TeacherLessonUpdate(BaseModel):
     title: Optional[str] = Field(default=None, min_length=2, max_length=160)
     summary: Optional[str] = Field(default=None, min_length=2, max_length=1000)
     theme_id: Optional[str] = None
-    age_group: Optional[Literal["4-5", "5-6", "4-6"]] = None
+    age_group: Optional[Literal["Pre-School", "3-4", "4-5", "5-6", "4-6"]] = None
     estimated_minutes: Optional[int] = Field(default=None, ge=3, le=60)
     audio_narration_text: Optional[str] = Field(default=None, max_length=1500)
     status: Optional[Literal["draft", "published", "archived"]] = None
@@ -487,7 +487,7 @@ class AdminClassOut(BaseModel):
 
 class AdminClassCreate(BaseModel):
     name: str = Field(min_length=2, max_length=120)
-    age_group: Literal["4-5", "5-6", "4-6"] = "4-5"
+    age_group: Literal["Pre-School", "3-4", "4-5", "5-6", "4-6"] = "Pre-School"
     academic_year: str = Field(default="2026-2027", min_length=4, max_length=30)
     room_label: Optional[str] = Field(default=None, max_length=50)
     is_active: bool = True
@@ -495,7 +495,7 @@ class AdminClassCreate(BaseModel):
 
 class AdminClassUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=2, max_length=120)
-    age_group: Optional[Literal["4-5", "5-6", "4-6"]] = None
+    age_group: Optional[Literal["Pre-School", "3-4", "4-5", "5-6", "4-6"]] = None
     academic_year: Optional[str] = Field(default=None, min_length=4, max_length=30)
     room_label: Optional[str] = Field(default=None, max_length=50)
     is_active: Optional[bool] = None

@@ -75,7 +75,7 @@ def create_child(
     child = Child(
         display_name=clean_display_name,
         birth_year=payload.birth_year,
-        age_group=payload.age_group,
+        age_group=payload.age_group or "4-5",
         avatar_key=payload.avatar_key,
         favorite_color=payload.favorite_color,
         daily_goal_minutes=payload.daily_goal_minutes,

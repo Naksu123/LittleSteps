@@ -19,7 +19,7 @@ import {
   getDefaultDifficultyForChild,
 } from "@/lib/gameDifficulty";
 import { speak } from "@/lib/speech";
-import { getDefaultPortalPath } from "@/lib/utils";
+import { formatAgeGroupLabel, getDefaultPortalPath } from "@/lib/utils";
 import { contentApi, progressApi } from "@/services/api";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Mascot } from "@/components/brand/Mascot";
@@ -529,8 +529,8 @@ function KidsPortalContent() {
                           <CardContent className="p-6 space-y-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <Badge variant="mint">
-                                {lesson.estimated_minutes} mins · Ages{" "}
-                                {lesson.age_group}
+                                {lesson.estimated_minutes} mins ·{" "}
+                                {formatAgeGroupLabel(lesson.age_group)}
                               </Badge>
                               {isDone && (
                                 <Badge variant="sunshine">

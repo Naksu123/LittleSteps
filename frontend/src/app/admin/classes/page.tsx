@@ -11,6 +11,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+import { formatAgeGroupLabel } from "@/lib/utils";
 import {
   adminCreateClassSchema,
   type AdminCreateClassFormValues,
@@ -58,7 +59,7 @@ function AdminClassesPageContent() {
     resolver: zodResolver(adminCreateClassSchema),
     defaultValues: {
       name: "",
-      age_group: "4-5",
+      age_group: "Pre-School",
       academic_year: "2026-2027",
       room_label: "",
     },
@@ -107,7 +108,7 @@ function AdminClassesPageContent() {
       });
       reset({
         name: "",
-        age_group: "4-5",
+        age_group: "Pre-School",
         academic_year: "2026-2027",
         room_label: "",
       });
@@ -286,9 +287,10 @@ function AdminClassesPageContent() {
                 {...register("age_group")}
                 className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
               >
-                <option value="4-5">Ages 4–5</option>
-                <option value="5-6">Ages 5–6</option>
-                <option value="4-6">Ages 4–6</option>
+                <option value="Pre-School">Pre-School</option>
+                <option value="3-4">Pre-School (Ages 3–4)</option>
+                <option value="4-5">Pre-School (Ages 4–5)</option>
+                <option value="5-6">Pre-School (Ages 5–6)</option>
               </select>
             </div>
 
@@ -356,7 +358,7 @@ function AdminClassesPageContent() {
                           </Badge>
                         </CardTitle>
                         <CardDescription>
-                          Ages {cls.age_group} • {cls.academic_year}
+                          {formatAgeGroupLabel(cls.age_group)} • {cls.academic_year}
                           {cls.room_label ? ` • ${cls.room_label}` : ""}
                         </CardDescription>
                       </div>
@@ -475,7 +477,7 @@ function AdminClassesPageContent() {
                                     {s.display_name}
                                   </p>
                                   <p className="text-[11px] text-[#24334D]/60">
-                                    Age {s.age_group}
+                                    {formatAgeGroupLabel(s.age_group)}
                                   </p>
                                 </div>
                               </div>
@@ -512,7 +514,7 @@ function AdminClassesPageContent() {
                           <option value="">Select learner to enroll...</option>
                           {availableChildren.map((c) => (
                             <option key={c.id} value={c.id}>
-                              {c.display_name} (Ages {c.age_group})
+                              {c.display_name} ({formatAgeGroupLabel(c.age_group)})
                             </option>
                           ))}
                         </select>
@@ -579,7 +581,7 @@ function AdminClassesPageContent() {
                             </div>
                           </div>
                           <Badge variant="neutral" className="shrink-0">
-                            Ages {child.age_group}
+                            {formatAgeGroupLabel(child.age_group)}
                           </Badge>
                         </div>
 
@@ -629,7 +631,7 @@ function AdminClassesPageContent() {
                               </div>
                             </td>
                             <td className="py-3 pr-4 text-xs font-bold">
-                              {child.age_group}
+                              {formatAgeGroupLabel(child.age_group)}
                             </td>
                             <td className="py-3 pr-4 text-xs text-[#24334D]/75">
                               {child.parent_names.length > 0

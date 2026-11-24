@@ -341,7 +341,7 @@ function ParentSettingsContent() {
                   Screen Time & Family Preferences
                 </CardTitle>
                 <CardDescription>
-                  Healthy daily limits tailored for ages 4–6.
+                  Healthy daily limits tailored for Pre-School learners.
                 </CardDescription>
               </CardHeader>
               <CardContent>

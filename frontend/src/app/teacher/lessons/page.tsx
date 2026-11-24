@@ -12,6 +12,7 @@ import {
   Plus,
   Sparkles,
 } from "lucide-react";
+import { formatAgeGroupLabel } from "@/lib/utils";
 import {
   createLessonSchema,
   createThemeSchema,
@@ -99,7 +100,7 @@ function TeacherLessonsContent() {
       subject_id: "",
       theme_id: "",
       summary: "",
-      age_group: "4-5",
+      age_group: "Pre-School",
       estimated_minutes: 10,
       audio_narration_text: "",
       status: "published",
@@ -330,7 +331,8 @@ function TeacherLessonsContent() {
                     {lesson.status}
                   </Badge>
                   <span className="text-xs font-bold text-[#24334D]/60">
-                    {lesson.estimated_minutes} mins · Ages {lesson.age_group}
+                    {lesson.estimated_minutes} mins ·{" "}
+                    {formatAgeGroupLabel(lesson.age_group)}
                   </span>
                 </div>
                 <CardTitle className="pt-1">{lesson.title}</CardTitle>
@@ -500,9 +502,10 @@ function TeacherLessonsContent() {
                 className="h-11 w-full rounded-2xl border-2 border-[#24334D]/12 bg-white px-3 text-sm font-semibold"
                 {...regLesson("age_group")}
               >
-                <option value="4-5">4–5</option>
-                <option value="5-6">5–6</option>
-                <option value="4-6">4–6</option>
+                <option value="Pre-School">Pre-School</option>
+                <option value="3-4">Pre-School (Ages 3–4)</option>
+                <option value="4-5">Pre-School (Ages 4–5)</option>
+                <option value="5-6">Pre-School (Ages 5–6)</option>
               </select>
             </div>
             <div className="space-y-1">

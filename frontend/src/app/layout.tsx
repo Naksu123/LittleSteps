@@ -12,7 +12,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "LittleSteps — Cloud Kindergarten Learning Management System",
   description:
-    "Interactive, child-safe early childhood learning for ages 4–6, empowering parents, guardians, and kindergarten teachers.",
+    "Interactive, child-safe early childhood learning for Pre-School learners, empowering parents, guardians, and teachers.",
   icons: {
     icon: "/images/littlesteps-logo.jpg",
   },

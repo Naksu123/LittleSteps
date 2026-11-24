@@ -13,7 +13,7 @@ import {
 import { starsForScore } from "@/lib/gameScoring";
 import { getSharedAudioContext, playChime } from "@/lib/sound";
 import { speak } from "@/lib/speech";
-import { cn } from "@/lib/utils";
+import { cn, formatAgeGroupLabel } from "@/lib/utils";
 import { progressApi } from "@/services/api";
 import { ChoiceGame } from "@/components/games/ChoiceGame";
 import { MemoryGame } from "@/components/games/MemoryGame";
@@ -151,7 +151,9 @@ export function GamePlayer({
           <div className="space-y-2.5 max-w-2xl mx-auto">
             <p className="font-display text-sm font-bold text-[#24334D]/75">
               Choose Challenge Mode
-              {child ? ` (Recommended for ${child.display_name}, Ages ${child.age_group})` : ""}
+              {child
+                ? ` (Recommended for ${child.display_name}, ${formatAgeGroupLabel(child.age_group, child.birth_year)})`
+                : ""}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
               {DIFFICULTIES.map((mode) => {

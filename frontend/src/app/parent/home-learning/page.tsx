@@ -11,7 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { formatShortDate } from "@/lib/utils";
+import { formatAgeGroupLabel, formatShortDate } from "@/lib/utils";
 import { reflectionSchema, type ReflectionFormValues } from "@/lib/validation";
 import { ApiError, parentApi } from "@/services/api";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -451,7 +451,7 @@ function HomeLearningHubContent() {
                       <div>
                         <p className="font-bold text-sm">{ws.title}</p>
                         <p className="text-xs text-[#24334D]/70">
-                          {ws.description} (Ages {ws.age_group})
+                          {ws.description} ({formatAgeGroupLabel(ws.age_group)})
                         </p>
                       </div>
                       <Button

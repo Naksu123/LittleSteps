@@ -14,7 +14,7 @@ import {
   Trash2,
   Volume2,
 } from "lucide-react";
-import { formatShortDate } from "@/lib/utils";
+import { formatAgeGroupLabel, formatShortDate } from "@/lib/utils";
 import {
   adminCreateSubjectSchema,
   type AdminCreateSubjectFormValues,
@@ -391,7 +391,8 @@ function AdminContentStoragePageContent() {
                         {lesson.title}
                       </p>
                       <p className="text-xs text-[#24334D]/60">
-                        Ages {lesson.age_group} • {lesson.estimated_minutes} min
+                        {formatAgeGroupLabel(lesson.age_group)} •{" "}
+                        {lesson.estimated_minutes} min
                       </p>
                     </div>
                     <select

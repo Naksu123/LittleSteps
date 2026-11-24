@@ -578,6 +578,7 @@ export const childrenApi = {
     childId: string,
     payload: {
       display_name?: string;
+      birth_year?: number;
       age_group?: string;
       avatar_key?: string;
       favorite_color?: string;
@@ -1095,7 +1096,7 @@ export const adminApi = {
     ),
   createClass: (payload: {
     name: string;
-    age_group: "4-5" | "5-6" | "4-6";
+    age_group: "Pre-School" | "3-4" | "4-5" | "5-6" | "4-6";
     academic_year: string;
     room_label?: string;
     is_active?: boolean;
@@ -1108,7 +1109,7 @@ export const adminApi = {
     classId: string,
     payload: {
       name?: string;
-      age_group?: "4-5" | "5-6" | "4-6";
+      age_group?: "Pre-School" | "3-4" | "4-5" | "5-6" | "4-6";
       academic_year?: string;
       room_label?: string | null;
       is_active?: boolean;

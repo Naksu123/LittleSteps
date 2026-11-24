@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Download, Printer, Sparkles, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { formatShortDate } from "@/lib/utils";
+import { formatAgeGroupLabel, formatShortDate } from "@/lib/utils";
 import { ApiError, parentApi } from "@/services/api";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PortalShell } from "@/components/layout/PortalShell";
@@ -168,8 +168,11 @@ function WeeklyReportContent() {
                       {report.child.display_name}&apos;s Weekly Report
                     </h2>
                     <p className="text-xs font-bold text-[#24334D]/65">
-                      Ages {report.child.age_group} · {report.week_start} to{" "}
-                      {report.week_end}
+                      {formatAgeGroupLabel(
+                        report.child.age_group,
+                        report.child.birth_year
+                      )}{" "}
+                      · {report.week_start} to {report.week_end}
                     </p>
                   </div>
                 </div>

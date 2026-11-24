@@ -325,10 +325,28 @@ def test_parent_register_add_child_logout_and_relogin_persistence(
     )
     assert child2.status_code == 201, child2.text
 
+    # Create a Pre-School child omitting age_group so backend derives it dynamically from birth_year
+    from datetime import date
+
+    dyn_year = date.today().year - 4
+    child_dyn = client.post(
+        "/api/children",
+        headers=headers,
+        json={
+            "display_name": "Niko",
+            "birth_year": dyn_year,
+            "avatar_key": "fox",
+            "favorite_color": "#FFE58A",
+            "daily_goal_minutes": 15,
+        },
+    )
+    assert child_dyn.status_code == 201, child_dyn.text
+    assert child_dyn.json()["age_group"] == "4-5"
+
     dash = client.get("/api/parent/dashboard", headers=headers)
     assert dash.status_code == 200
     child_names = {item["child"]["display_name"] for item in dash.json()["children"]}
-    assert child_names == {"arthur ni", "Lily"}
+    assert child_names == {"arthur ni", "Lily", "Niko"}
 
     # Another parent cannot access 'arthur ni'
     p2_headers = login_headers(client, "parent2@littlesteps.edu")
@@ -351,13 +369,14 @@ def test_parent_register_add_child_logout_and_relogin_persistence(
 
     me = client.get("/api/auth/me", headers=relogin_headers)
     assert me.status_code == 200
-    assert {c["display_name"] for c in me.json()["children"]} == {"arthur ni", "Lily"}
+    assert {c["display_name"] for c in me.json()["children"]} == {"arthur ni", "Lily", "Niko"}
 
     relogin_dash = client.get("/api/parent/dashboard", headers=relogin_headers)
     assert relogin_dash.status_code == 200
     assert {item["child"]["display_name"] for item in relogin_dash.json()["children"]} == {
         "arthur ni",
         "Lily",
+        "Niko",
     }
 
     # 3. Never fake registration on ephemeral Vercel SQLite without PostgreSQL

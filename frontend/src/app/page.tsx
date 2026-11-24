@@ -56,8 +56,8 @@ const MODULES = [
 const PORTALS = [
   {
     title: "Kids Learning Portal",
-    desc: "Large touch cards, voice-guided narration, weekly dynamic 12-question games, zero ads, and encouraging rewards for ages 4–6.",
-    badge: "Ages 4–6",
+    desc: "Large touch cards, voice-guided narration, weekly dynamic 12-question games, zero ads, and encouraging rewards for Pre-School learners.",
+    badge: "Pre-School",
     color: "#FFE58A",
     icon: Sparkles,
   },
@@ -105,7 +105,7 @@ export default function LandingPage() {
           <h1 className="font-display text-fluid-hero font-bold">
             Playful Learning for{" "}
             <span className="text-[#175B82] underline decoration-[#FFE58A] decoration-6 underline-offset-4">
-              Ages 4–6
+              Pre-School
             </span>
             , Guided Together at Home.
           </h1>
@@ -216,7 +216,7 @@ export default function LandingPage() {
             </p>
           </div>
           <Badge variant="sunshine" className="self-start sm:self-auto shrink-0">
-            Ages 4–6 Developmental Fit
+            Pre-School Developmental Fit
           </Badge>
         </div>
 

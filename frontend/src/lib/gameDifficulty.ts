@@ -55,7 +55,6 @@ export function getDefaultDifficultyForChild(
   child?: { age_group?: string; birth_year?: number } | null
 ): GameDifficulty {
   if (!child) return "normal";
-  if (child.age_group === "5-6") return "hard";
 
   if (typeof child.birth_year === "number" && child.birth_year > 0) {
     const age = new Date().getFullYear() - child.birth_year;
@@ -64,7 +63,8 @@ export function getDefaultDifficultyForChild(
     return "normal";
   }
 
-  if (child.age_group === "4-6") return "medium";
+  if (child.age_group === "5-6") return "hard";
+  if (child.age_group === "4-6" || child.age_group === "Pre-School") return "medium";
   return "normal";
 }
 

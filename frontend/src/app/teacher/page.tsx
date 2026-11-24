@@ -13,7 +13,7 @@ import {
   Search,
   Users,
 } from "lucide-react";
-import { formatShortDate } from "@/lib/utils";
+import { formatAgeGroupLabel, formatShortDate } from "@/lib/utils";
 import { ApiError, contentApi, teacherApi } from "@/services/api";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PortalShell } from "@/components/layout/PortalShell";
@@ -280,7 +280,9 @@ function TeacherPortalContent() {
                     >
                       <CardHeader>
                         <div className="flex items-center justify-between">
-                          <Badge variant="sky">Ages {cls.age_group}</Badge>
+                          <Badge variant="sky">
+                            {formatAgeGroupLabel(cls.age_group)}
+                          </Badge>
                           <span className="text-xs font-bold text-[#24334D]/60">
                             {cls.academic_year}
                           </span>
@@ -349,7 +351,7 @@ function TeacherPortalContent() {
                             </div>
                           </div>
                           <Badge variant="neutral" className="shrink-0">
-                            {stu.age_group}
+                            {formatAgeGroupLabel(stu.age_group)}
                           </Badge>
                         </div>
 
@@ -410,7 +412,9 @@ function TeacherPortalContent() {
                               {stu.class_name}
                             </td>
                             <td className="py-3 pr-4">
-                              <Badge variant="neutral">{stu.age_group}</Badge>
+                              <Badge variant="neutral">
+                                {formatAgeGroupLabel(stu.age_group)}
+                              </Badge>
                             </td>
                             <td className="py-3 pr-4 font-bold">⭐ {stu.total_stars}</td>
                             <td className="py-3 pr-4">{stu.lessons_completed}</td>

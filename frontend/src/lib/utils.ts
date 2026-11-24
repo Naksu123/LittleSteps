@@ -62,3 +62,5 @@ export function formatCompactSubjectLabel(name: string): string {
   if (trimmed.length <= 11) return trimmed;
   return `${trimmed.slice(0, 10)}…`;
 }
+
+export { formatAgeGroupLabel } from "@/lib/preschoolAges";

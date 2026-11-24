@@ -3,6 +3,7 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 
@@ -97,6 +98,7 @@ def create_app() -> FastAPI:
     if not is_production or only_local_origins:
         cors_kwargs["allow_origin_regex"] = r"https://.*\.vercel\.app"
 
+    application.add_middleware(GZipMiddleware, minimum_size=500)
     application.add_middleware(CORSMiddleware, **cors_kwargs)
     application.add_middleware(SecurityHeadersMiddleware)
     application.add_middleware(

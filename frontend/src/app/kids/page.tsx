@@ -84,7 +84,7 @@ function KidsPortalContent() {
           contentApi.subjects(),
           contentApi.themes(),
           contentApi.lessons(),
-          contentApi.games(),
+          contentApi.gamesSummary(),
         ]);
         if (!mounted) return;
         setSubjects(subjData);
@@ -126,7 +126,10 @@ function KidsPortalContent() {
 
   function handleTabSelect(tab: KidsTabKey) {
     setActiveTab(tab);
-    router.replace(`/kids?tab=${tab}`, { scroll: false });
+    if (typeof window !== "undefined") {
+      const nextUrl = `/kids?tab=${tab}`;
+      window.history.replaceState(window.history.state, "", nextUrl);
+    }
   }
 
   function warmLesson(id: string) {

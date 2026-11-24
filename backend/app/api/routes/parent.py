@@ -202,6 +202,8 @@ def get_parent_dashboard(
     att_by_child: dict[str, list[ActivityAttempt]] = defaultdict(list)
     rewards_by_child: dict[str, list[ChildReward]] = defaultdict(list)
     skills_by_child: dict[str, list[tuple[SkillProgress, str]]] = defaultdict(list)
+    enrollments_by_child: dict[str, set[str]] = defaultdict(set)
+    all_assignments: list[Assignment] = []
 
     if child_ids:
         for lp in db.scalars(
@@ -229,6 +231,27 @@ def get_parent_dashboard(
         ).all():
             skills_by_child[sp.child_id].append((sp, subj_name))
 
+        all_enrolled_class_ids: set[str] = set()
+        for cid_row, cls_id_row in db.execute(
+            select(ClassEnrollment.child_id, ClassEnrollment.class_id).where(
+                ClassEnrollment.child_id.in_(child_ids),
+                ClassEnrollment.status == "active",
+            )
+        ).all():
+            enrollments_by_child[cid_row].add(cls_id_row)
+            all_enrolled_class_ids.add(cls_id_row)
+
+        assignment_conds = [Assignment.child_id.in_(child_ids)]
+        if all_enrolled_class_ids:
+            assignment_conds.append(Assignment.class_id.in_(all_enrolled_class_ids))
+        all_assignments = list(
+            db.scalars(
+                select(Assignment)
+                .where(or_(*assignment_conds))
+                .order_by(Assignment.created_at.desc())
+            ).all()
+        )
+
     child_items: list[ParentChildDashboardItem] = []
     for child in children:
         c_lps = lp_by_child.get(child.id, [])
@@ -238,6 +261,24 @@ def get_parent_dashboard(
         game_secs = sum(att.duration_seconds or 0 for att in c_atts)
         rewards = rewards_by_child.get(child.id, [])
         skills_rows = skills_by_child.get(child.id, [])
+        completed_lesson_ids = {lp.lesson_id for lp in c_lps if lp.status == "completed"}
+        completed_game_ids = {att.game_id for att in c_atts if att.completed and att.game_id}
+        c_class_ids = enrollments_by_child.get(child.id, set())
+        c_assigned = [
+            AssignedActivityOut(
+                id=a.id,
+                title=a.title,
+                lesson_id=a.lesson_id,
+                game_id=a.game_id,
+                due_date=a.due_date,
+                completed=(
+                    (a.lesson_id in completed_lesson_ids if a.lesson_id else False)
+                    or (a.game_id in completed_game_ids if a.game_id else False)
+                ),
+            )
+            for a in all_assignments
+            if a.child_id == child.id or (a.class_id and a.class_id in c_class_ids)
+        ]
 
         child_items.append(
             ParentChildDashboardItem(
@@ -258,6 +299,7 @@ def get_parent_dashboard(
                     for sp, subj_name in skills_rows
                 ],
                 weekly_activity=_build_weekly_activity_from_rows(c_lps, c_atts),
+                assigned_activities=c_assigned,
             )
         )
 
@@ -339,12 +381,22 @@ def get_parent_dashboard(
             .limit(8)
         ).all()
     )
+    unread_notification_count = (
+        db.scalar(
+            select(func.count(Notification.id)).where(
+                Notification.user_id == current_user.id,
+                Notification.is_read.is_(False),
+            )
+        )
+        or 0
+    )
 
     return ParentDashboardOut(
         children=child_items,
         current_theme=current_theme_detail,
         announcements=[AnnouncementOut.model_validate(a) for a in announcements],
         notifications=[NotificationOut.model_validate(n) for n in notifications],
+        unread_notification_count=unread_notification_count,
     )
 
 
@@ -1054,30 +1106,30 @@ def get_weekly_report(
         ).all()
     )
 
+    rec_stmt = (
+        select(HomeActivity, Theme.week_number, Theme.title)
+        .join(Theme, Theme.id == HomeActivity.theme_id)
+        .where(Theme.status == "published")
+    )
+    if completed_home_ids:
+        rec_stmt = rec_stmt.where(HomeActivity.id.not_in(completed_home_ids))
     candidate_home_acts = list(
         db.execute(
-            select(HomeActivity, Theme.week_number, Theme.title)
-            .join(Theme, Theme.id == HomeActivity.theme_id)
-            .where(Theme.status == "published")
-            .order_by(Theme.week_number.asc(), HomeActivity.sort_order.asc())
+            rec_stmt.order_by(Theme.week_number.asc(), HomeActivity.sort_order.asc()).limit(3)
         ).all()
     )
-    recommended: list[RecommendedHomeActivityOut] = []
-    for ha, wk, th_title in candidate_home_acts:
-        if ha.id not in completed_home_ids:
-            recommended.append(
-                RecommendedHomeActivityOut(
-                    home_activity_id=ha.id,
-                    theme_id=ha.theme_id,
-                    week_number=wk,
-                    theme_title=th_title,
-                    title=ha.title,
-                    materials=ha.materials_json,
-                    estimated_minutes=ha.estimated_minutes,
-                )
-            )
-            if len(recommended) >= 3:
-                break
+    recommended: list[RecommendedHomeActivityOut] = [
+        RecommendedHomeActivityOut(
+            home_activity_id=ha.id,
+            theme_id=ha.theme_id,
+            week_number=wk,
+            theme_title=th_title,
+            title=ha.title,
+            materials=ha.materials_json,
+            estimated_minutes=ha.estimated_minutes,
+        )
+        for ha, wk, th_title in candidate_home_acts
+    ]
 
     obs_rows = list(
         db.execute(

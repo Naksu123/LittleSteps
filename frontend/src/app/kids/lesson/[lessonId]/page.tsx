@@ -166,12 +166,12 @@ function LessonViewerContent() {
       });
       starsAccRef.current += res.stars_awarded;
       rewardsAccRef.current = [...rewardsAccRef.current, ...res.new_rewards];
-      await refreshUser();
       setCelebration({
         stars: starsAccRef.current,
         rewards: rewardsAccRef.current,
         encouragement: res.encouragement,
       });
+      void refreshUser();
     } catch {
       setCelebration({
         stars: starsAccRef.current || 3,

@@ -111,8 +111,8 @@ function AdminClassesPageContent() {
         academic_year: "2026-2027",
         room_label: "",
       });
+      setClasses((prev) => [...prev, created]);
       setToast(`Created class "${created.name}".`);
-      await loadData();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not create class."
@@ -125,11 +125,13 @@ function AdminClassesPageContent() {
     setError(null);
     setToast(null);
     try {
-      await adminApi.updateClass(cls.id, { is_active: !cls.is_active });
+      const updated = await adminApi.updateClass(cls.id, {
+        is_active: !cls.is_active,
+      });
+      setClasses((prev) => prev.map((c) => (c.id === cls.id ? updated : c)));
       setToast(
         `${cls.name} marked ${!cls.is_active ? "active" : "archived/inactive"}.`
       );
-      await loadData();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not update class."
@@ -146,13 +148,13 @@ function AdminClassesPageContent() {
     setError(null);
     setToast(null);
     try {
-      await adminApi.assignTeacher(cls.id, {
+      const updated = await adminApi.assignTeacher(cls.id, {
         teacher_user_id: teacherId,
         is_lead: cls.teachers.length === 0,
       });
+      setClasses((prev) => prev.map((c) => (c.id === cls.id ? updated : c)));
       setSelectedTeacherByClass((prev) => ({ ...prev, [cls.id]: "" }));
       setToast(`Assigned educator to ${cls.name}.`);
-      await loadData();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not assign educator."
@@ -168,8 +170,19 @@ function AdminClassesPageContent() {
     setToast(null);
     try {
       await adminApi.removeTeacher(cls.id, teacherId);
+      setClasses((prev) =>
+        prev.map((c) =>
+          c.id === cls.id
+            ? {
+                ...c,
+                teachers: c.teachers.filter(
+                  (t) => t.teacher_user_id !== teacherId
+                ),
+              }
+            : c
+        )
+      );
       setToast(`Unassigned educator from ${cls.name}.`);
-      await loadData();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not remove educator."
@@ -186,10 +199,10 @@ function AdminClassesPageContent() {
     setError(null);
     setToast(null);
     try {
-      await adminApi.enrollChild(cls.id, { child_id: childId });
+      const updated = await adminApi.enrollChild(cls.id, { child_id: childId });
+      setClasses((prev) => prev.map((c) => (c.id === cls.id ? updated : c)));
       setSelectedChildByClass((prev) => ({ ...prev, [cls.id]: "" }));
       setToast(`Enrolled learner into ${cls.name}.`);
-      await loadData();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not enroll learner."
@@ -205,8 +218,14 @@ function AdminClassesPageContent() {
     setToast(null);
     try {
       await adminApi.unenrollChild(cls.id, childId);
+      setClasses((prev) =>
+        prev.map((c) =>
+          c.id === cls.id
+            ? { ...c, students: c.students.filter((s) => s.child_id !== childId) }
+            : c
+        )
+      );
       setToast(`Removed learner enrollment from ${cls.name}.`);
-      await loadData();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not unenroll learner."

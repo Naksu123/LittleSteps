@@ -90,18 +90,25 @@ export function ChoiceGame({
     [roundAnimalKey]
   );
 
+  const nextRound = rounds[roundIdx + 1];
+  const nextRoundAnimalKey = useMemo(() => {
+    if (!nextRound || nextRound.visual?.kind !== "sound") return null;
+    return resolveAnimalKey(
+      nextRound.visual.animal || nextRound.answer || nextRound.visual.text
+    );
+  }, [nextRound]);
+
   useEffect(() => {
     if (!currentRound || currentRound.visual?.kind !== "sound") return;
-    const keys = new Set<AnimalSoundKey>();
-    if (roundAnimalKey) keys.add(roundAnimalKey);
-    for (const c of currentRound.choices) {
-      const k = resolveAnimalKey(c.key) || resolveAnimalKey(c.label);
-      if (k) keys.add(k);
+    const keys: AnimalSoundKey[] = [];
+    if (roundAnimalKey) keys.push(roundAnimalKey);
+    if (nextRoundAnimalKey && nextRoundAnimalKey !== roundAnimalKey) {
+      keys.push(nextRoundAnimalKey);
     }
-    if (keys.size > 0) {
-      preloadAnimalSounds(Array.from(keys));
+    if (keys.length > 0) {
+      preloadAnimalSounds(keys);
     }
-  }, [currentRound, roundAnimalKey]);
+  }, [currentRound, roundAnimalKey, nextRoundAnimalKey]);
 
   const triggerRoundAnimalSound = useCallback(
     (withPromptAfter = false) => {
@@ -148,7 +155,7 @@ export function ChoiceGame({
     if (!roundAnimalKey) return;
     const autoTimer = setTimeout(() => {
       triggerRoundAnimalSound(false);
-    }, 140);
+    }, 0);
     return () => clearTimeout(autoTimer);
   }, [roundIdx, roundAnimalKey, triggerRoundAnimalSound]);
 
@@ -254,7 +261,7 @@ export function ChoiceGame({
         });
       } else {
         playChime("success");
-        timerRef.current = setTimeout(advanceRound, 900);
+        timerRef.current = setTimeout(advanceRound, 600);
       }
     } else {
       missedThisRoundRef.current = true;

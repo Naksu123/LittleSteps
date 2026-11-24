@@ -1,7 +1,6 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { motion } from "framer-motion";
 import { Award, RotateCcw, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,21 +29,12 @@ export function RewardCelebration({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#24334D]/55 p-3 sm:p-4 backdrop-blur-xs overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#24334D]/60 p-3 sm:p-4 overflow-y-auto"
     >
-      <motion.div
-        initial={{ scale: 0.82, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 260, damping: 20 }}
-        className="w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain rounded-3xl bg-white p-5 sm:p-7 text-center shadow-2xl border-4 border-[#FFE58A] space-y-4 sm:space-y-5"
-      >
-        <motion.div
-          animate={{ rotate: [0, -8, 8, 0], scale: [1, 1.12, 1] }}
-          transition={{ duration: 0.9, repeat: 1 }}
-          className="mx-auto flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-[#FFF5CF] text-5xl sm:text-6xl shadow-sm"
-        >
+      <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain rounded-3xl bg-white p-5 sm:p-7 text-center shadow-2xl border-4 border-[#FFE58A] space-y-4 sm:space-y-5 animate-pop-in">
+        <div className="mx-auto flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-[#FFF5CF] text-5xl sm:text-6xl shadow-sm animate-wobble">
           🌟
-        </motion.div>
+        </div>
 
         <div className="space-y-1.5">
           <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#24334D]">
@@ -107,7 +97,7 @@ export function RewardCelebration({
             {backLabel}
           </Button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 

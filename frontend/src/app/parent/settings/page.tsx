@@ -104,7 +104,7 @@ function ParentSettingsContent() {
     setError(null);
     setToast(null);
     try {
-      await parentApi.createGoal({
+      const created = await parentApi.createGoal({
         child_id: activeChild.id,
         title: values.title,
         target_minutes_per_day: values.target_minutes_per_day,
@@ -116,8 +116,9 @@ function ParentSettingsContent() {
         target_minutes_per_day: 20,
         target_lessons_per_week: 3,
       });
+      setGoals((prev) => [created, ...prev]);
       setToast("Learning goal added!");
-      await Promise.all([loadData(activeChild.id), refreshUser()]);
+      void refreshUser();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not save learning goal."
@@ -127,8 +128,10 @@ function ParentSettingsContent() {
 
   async function toggleGoalActive(goal: LearningGoal) {
     try {
-      await parentApi.updateGoal(goal.id, { is_active: !goal.is_active });
-      await loadData(activeChild?.id);
+      const updated = await parentApi.updateGoal(goal.id, {
+        is_active: !goal.is_active,
+      });
+      setGoals((prev) => prev.map((g) => (g.id === goal.id ? updated : g)));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not update goal.");
     }
@@ -137,7 +140,7 @@ function ParentSettingsContent() {
   async function deleteGoal(goalId: string) {
     try {
       await parentApi.deleteGoal(goalId);
-      await loadData(activeChild?.id);
+      setGoals((prev) => prev.filter((g) => g.id !== goalId));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not delete goal.");
     }

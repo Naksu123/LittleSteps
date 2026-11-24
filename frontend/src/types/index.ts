@@ -14,6 +14,7 @@ export interface TokenResponse {
   refresh_token: string;
   token_type: string;
   user: UserSummary;
+  children?: Child[];
 }
 
 export interface Child {
@@ -339,6 +340,7 @@ export interface ParentChildDashboardItem {
   recent_rewards: Reward[];
   skills: SkillProgress[];
   weekly_activity: WeeklyActivityPoint[];
+  assigned_activities?: AssignedActivity[];
 }
 
 export interface Announcement {
@@ -479,6 +481,7 @@ export interface ParentDashboardData {
   current_theme?: ThemeDetail | null;
   announcements: Announcement[];
   notifications: NotificationItem[];
+  unread_notification_count?: number;
 }
 
 export interface ParentHomeLearningTheme {

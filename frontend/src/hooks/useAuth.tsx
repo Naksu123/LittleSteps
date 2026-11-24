@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import {
@@ -122,9 +123,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       access_token: string;
       refresh_token: string;
       user: UserSummary;
+      children?: Child[];
     }): Promise<UserSummary> => {
       setStoredTokens(res.access_token, res.refresh_token);
       setUser(res.user);
+      setIsLoading(false);
+
+      if (
+        Array.isArray(res.children) &&
+        (res.children.length > 0 || !res.user.roles.some((r) => r === "teacher" || r === "admin"))
+      ) {
+        hydrateSessionChildren({ user: res.user, children: res.children });
+        return res.user;
+      }
+
+      if (res.user.roles.some((r) => r === "teacher" || r === "admin")) {
+        setChildrenList([]);
+        void refreshUser();
+        return res.user;
+      }
+
       try {
         const me = await authApi.me();
         hydrateSessionChildren(me);
@@ -140,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return res.user;
       }
     },
-    [hydrateSessionChildren, setActiveChildId]
+    [hydrateSessionChildren, refreshUser, setActiveChildId]
   );
 
   const login = useCallback(
@@ -194,22 +212,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [setActiveChildId]);
 
+  const contextValue = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      childrenList,
+      activeChildId,
+      setActiveChildId,
+      isLoading,
+      isAuthenticated: Boolean(user),
+      login,
+      staffLogin,
+      register,
+      logout,
+      refreshUser,
+    }),
+    [
+      user,
+      childrenList,
+      activeChildId,
+      setActiveChildId,
+      isLoading,
+      login,
+      staffLogin,
+      register,
+      logout,
+      refreshUser,
+    ]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        childrenList,
-        activeChildId,
-        setActiveChildId,
-        isLoading,
-        isAuthenticated: Boolean(user),
-        login,
-        staffLogin,
-        register,
-        logout,
-        refreshUser,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

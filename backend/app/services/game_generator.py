@@ -1,7 +1,9 @@
 import copy
 import hashlib
+import json
 import random
 import re
+from functools import lru_cache
 from typing import Any, Optional
 
 from app.services.progress_service import local_today
@@ -908,92 +910,88 @@ def _gen_balanced_sort_items(
     return selected
 
 
-def build_weekly_game_config(
-    slug: str,
-    base_config: dict[str, Any],
-    week: Optional[str] = None,
-) -> dict[str, Any]:
-    """Return a deterministic weekly-rotating 12-question/item config for a game slug."""
-    week_key, iso_week = parse_week_key(week)
+@lru_cache(maxsize=256)
+def _build_known_weekly_game_json(slug: str, week_key: str, iso_week: int) -> Optional[str]:
+    """Generate and memoize compact JSON for built-in weekly game configurations."""
     weekly_label = f"Week {iso_week} Fresh Mix"
     rng = _week_rng(slug, week_key)
-
     meta = {"weekly_key": week_key, "weekly_label": weekly_label}
 
+    cfg: Optional[dict[str, Any]] = None
     if slug == "letter-matching":
-        return {
+        cfg = {
             "engine": "choice",
             "skill": "Phonics & Initial Sounds",
             "feedback": FEEDBACK_PHRASES,
             "rounds": _gen_letter_matching(rng),
             **meta,
         }
-    if slug == "number-counting":
-        return {
+    elif slug == "number-counting":
+        cfg = {
             "engine": "choice",
             "skill": "Counting 1-12",
             "feedback": FEEDBACK_PHRASES,
             "rounds": _gen_number_counting(rng),
             **meta,
         }
-    if slug == "fruit-addition":
-        return {
+    elif slug == "fruit-addition":
+        cfg = {
             "engine": "choice",
             "skill": "Visual Addition",
             "feedback": FEEDBACK_PHRASES,
             "rounds": _gen_fruit_addition(rng),
             **meta,
         }
-    if slug == "color-recognition":
-        return {
+    elif slug == "color-recognition":
+        cfg = {
             "engine": "choice",
             "skill": "Color Recognition",
             "feedback": FEEDBACK_PHRASES,
             "rounds": _gen_color_recognition(rng),
             **meta,
         }
-    if slug == "pattern-completion":
-        return {
+    elif slug == "pattern-completion":
+        cfg = {
             "engine": "choice",
             "skill": "Number Sense & Patterns",
             "feedback": FEEDBACK_PHRASES,
             "rounds": _gen_pattern_completion(rng),
             **meta,
         }
-    if slug == "animal-sounds":
-        return {
+    elif slug == "animal-sounds":
+        cfg = {
             "engine": "choice",
             "skill": "Animal Listening",
             "feedback": FEEDBACK_PHRASES,
             "rounds": _gen_animal_sounds(rng),
             **meta,
         }
-    if slug == "picture-vocabulary":
-        return {
+    elif slug == "picture-vocabulary":
+        cfg = {
             "engine": "choice",
             "skill": "Everyday Vocabulary",
             "feedback": FEEDBACK_PHRASES,
             "rounds": _gen_picture_vocabulary(rng),
             **meta,
         }
-    if slug == "feelings-detective":
-        return {
+    elif slug == "feelings-detective":
+        cfg = {
             "engine": "choice",
             "skill": "Emotional Awareness",
             "feedback": FEEDBACK_PHRASES,
             "rounds": _gen_curated_scenarios(rng, FEELINGS_SCENARIOS),
             **meta,
         }
-    if slug == "weather-dress-up":
-        return {
+    elif slug == "weather-dress-up":
+        cfg = {
             "engine": "choice",
             "skill": "Weather & Seasons",
             "feedback": FEEDBACK_PHRASES,
             "rounds": _gen_curated_scenarios(rng, WEATHER_SCENARIOS),
             **meta,
         }
-    if slug == "shape-sorting":
-        return {
+    elif slug == "shape-sorting":
+        cfg = {
             "engine": "sort",
             "skill": "Shape Recognition",
             "feedback": FEEDBACK_PHRASES,
@@ -1005,8 +1003,8 @@ def build_weekly_game_config(
             "items": _gen_balanced_sort_items(rng, SHAPE_SORT_POOL),
             **meta,
         }
-    if slug == "object-sorting":
-        return {
+    elif slug == "object-sorting":
+        cfg = {
             "engine": "sort",
             "skill": "Daily Routines & Tidying",
             "feedback": FEEDBACK_PHRASES,
@@ -1018,8 +1016,8 @@ def build_weekly_game_config(
             "items": _gen_balanced_sort_items(rng, OBJECT_SORT_POOL),
             **meta,
         }
-    if slug == "healthy-snack-sorter":
-        return {
+    elif slug == "healthy-snack-sorter":
+        cfg = {
             "engine": "sort",
             "skill": "Healthy Food Choices",
             "feedback": FEEDBACK_PHRASES,
@@ -1031,42 +1029,58 @@ def build_weekly_game_config(
             "items": _gen_balanced_sort_items(rng, HEALTHY_SORT_POOL),
             **meta,
         }
-    if slug == "memory-matching":
-        return {
+    elif slug == "memory-matching":
+        cfg = {
             "engine": "memory",
             "skill": "Visual Memory & Colors",
             "feedback": FEEDBACK_PHRASES,
-            "pairs": copy.deepcopy(rng.sample(MEMORY_NATURE_POOL, 6)),
+            "pairs": rng.sample(MEMORY_NATURE_POOL, 6),
             **meta,
         }
-    if slug == "ocean-friends-memory":
-        return {
+    elif slug == "ocean-friends-memory":
+        cfg = {
             "engine": "memory",
             "skill": "Ocean Life Memory",
             "feedback": FEEDBACK_PHRASES,
-            "pairs": copy.deepcopy(rng.sample(MEMORY_OCEAN_POOL, 6)),
+            "pairs": rng.sample(MEMORY_OCEAN_POOL, 6),
             **meta,
         }
-    if slug == "puzzle-assembly":
-        return {
+    elif slug == "puzzle-assembly":
+        cfg = {
             "engine": "puzzle",
             "skill": "Spatial Puzzle Assembly",
             "feedback": FEEDBACK_PHRASES,
             "grid": 2,
-            "pictures": copy.deepcopy(rng.sample(PUZZLE_NATURE_POOL, 3)),
+            "pictures": rng.sample(PUZZLE_NATURE_POOL, 3),
             **meta,
         }
-    if slug == "space-explorer-puzzle":
-        return {
+    elif slug == "space-explorer-puzzle":
+        cfg = {
             "engine": "puzzle",
             "skill": "Space Spatial Puzzles",
             "feedback": FEEDBACK_PHRASES,
             "grid": 2,
-            "pictures": copy.deepcopy(rng.sample(PUZZLE_SPACE_POOL, 3)),
+            "pictures": rng.sample(PUZZLE_SPACE_POOL, 3),
             **meta,
         }
 
+    if cfg is None:
+        return None
+    return json.dumps(cfg, separators=(",", ":"))
+
+
+def build_weekly_game_config(
+    slug: str,
+    base_config: dict[str, Any],
+    week: Optional[str] = None,
+) -> dict[str, Any]:
+    """Return a deterministic weekly-rotating 12-question/item config for a game slug."""
+    week_key, iso_week = parse_week_key(week)
+    cached_json = _build_known_weekly_game_json(slug, week_key, iso_week)
+    if cached_json is not None:
+        return json.loads(cached_json)
+
     cfg = copy.deepcopy(base_config or {})
     cfg.setdefault("weekly_key", week_key)
-    cfg.setdefault("weekly_label", weekly_label)
+    cfg.setdefault("weekly_label", f"Week {iso_week} Fresh Mix")
     return cfg

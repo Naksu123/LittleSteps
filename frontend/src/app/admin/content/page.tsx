@@ -123,8 +123,10 @@ function AdminContentStoragePageContent() {
         color_hex: "#78C8F5",
         sort_order: subjects.length + 1,
       });
+      setSubjects((prev) =>
+        [...prev, created].sort((a, b) => a.sort_order - b.sort_order)
+      );
       setToast(`Added learning module "${created.name}".`);
-      await loadAll();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not create subject."
@@ -137,11 +139,15 @@ function AdminContentStoragePageContent() {
     setError(null);
     setToast(null);
     try {
-      await adminApi.updateSubject(subject.id, { is_active: !subject.is_active });
+      const updated = await adminApi.updateSubject(subject.id, {
+        is_active: !subject.is_active,
+      });
+      setSubjects((prev) =>
+        prev.map((s) => (s.id === subject.id ? updated : s))
+      );
       setToast(
         `${subject.name} marked ${!subject.is_active ? "active" : "hidden"}.`
       );
-      await loadAll();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not update subject."
@@ -159,9 +165,11 @@ function AdminContentStoragePageContent() {
     setError(null);
     setToast(null);
     try {
-      await adminApi.updateLessonStatus(lessonId, status);
+      const updated = await adminApi.updateLessonStatus(lessonId, status);
+      setLessons((prev) =>
+        prev.map((l) => (l.id === lessonId ? updated : l))
+      );
       setToast(`Lesson status changed to ${status}.`);
-      await loadAll();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not update lesson status."
@@ -179,9 +187,11 @@ function AdminContentStoragePageContent() {
     setError(null);
     setToast(null);
     try {
-      await adminApi.updateThemeStatus(themeId, status);
+      const updated = await adminApi.updateThemeStatus(themeId, status);
+      setThemes((prev) =>
+        prev.map((t) => (t.id === themeId ? updated : t))
+      );
       setToast(`Weekly theme status changed to ${status}.`);
-      await loadAll();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not update theme status."
@@ -204,8 +214,19 @@ function AdminContentStoragePageContent() {
     try {
       await adminApi.deleteStorageItem(item.item_type, item.id);
       setConfirmDeleteKey(null);
+      setStorage((prev) =>
+        prev
+          ? {
+              ...prev,
+              total_items: Math.max(0, prev.total_items - 1),
+              total_bytes: Math.max(0, prev.total_bytes - item.file_size_bytes),
+              items: prev.items.filter(
+                (i) => !(i.id === item.id && i.item_type === item.item_type)
+              ),
+            }
+          : prev
+      );
       setToast(`Removed "${item.title}" from cloud storage.`);
-      await loadAll();
     } catch (err) {
       setError(
         err instanceof ApiError

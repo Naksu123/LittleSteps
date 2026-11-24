@@ -68,10 +68,16 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     user, access_token, refresh_token = authenticate_user(
         db=db, email=payload.email, password=payload.password, ip_address=ip
     )
+    children = (
+        get_children_for_parent(db, user.id)
+        if "parent" in set(user.role_names)
+        else []
+    )
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         user=_to_user_summary(user),
+        children=[MeChildSummary.model_validate(c) for c in children],
     )
 
 

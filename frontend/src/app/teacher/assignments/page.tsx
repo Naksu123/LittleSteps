@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import {
@@ -61,29 +61,25 @@ function TeacherAssignmentsContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const notesLoadedRef = useRef(false);
+  const annLoadedRef = useRef(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [cls, stu, les, gam, asg, obs, fb, ann] = await Promise.all([
+      const [cls, stu, les, gam, asg] = await Promise.all([
         teacherApi.classes(),
         teacherApi.students(),
         teacherApi.lessons(),
-        contentApi.games(),
+        contentApi.gamesSummary(),
         teacherApi.assignments(),
-        teacherApi.observations(),
-        teacherApi.feedback(),
-        teacherApi.announcements(),
       ]);
       setClasses(cls);
       setStudents(stu);
       setLessons(les);
       setGames(gam);
       setAssignments(asg);
-      setObservations(obs);
-      setFeedbackList(fb);
-      setAnnouncements(ann);
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -98,6 +94,28 @@ function TeacherAssignmentsContent() {
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    if (tab === "notes" && !notesLoadedRef.current) {
+      notesLoadedRef.current = true;
+      Promise.all([teacherApi.observations(), teacherApi.feedback()])
+        .then(([obs, fb]) => {
+          setObservations(obs);
+          setFeedbackList(fb);
+        })
+        .catch(() => {
+          notesLoadedRef.current = false;
+        });
+    } else if (tab === "announcements" && !annLoadedRef.current) {
+      annLoadedRef.current = true;
+      teacherApi
+        .announcements()
+        .then((ann) => setAnnouncements(ann))
+        .catch(() => {
+          annLoadedRef.current = false;
+        });
+    }
+  }, [tab]);
 
   const {
     register: regAsg,
@@ -161,7 +179,7 @@ function TeacherAssignmentsContent() {
     setError(null);
     setToast(null);
     try {
-      await teacherApi.createAssignment({
+      const created = await teacherApi.createAssignment({
         title: values.title,
         class_id: values.class_id || null,
         child_id: values.child_id || null,
@@ -170,8 +188,8 @@ function TeacherAssignmentsContent() {
         due_date: values.due_date || null,
       });
       resetAsg();
+      setAssignments((prev) => [created, ...prev]);
       setToast("Activity assigned and families notified!");
-      await loadAll();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not assign activity."
@@ -182,7 +200,7 @@ function TeacherAssignmentsContent() {
   async function onDeleteAssignment(id: string) {
     try {
       await teacherApi.deleteAssignment(id);
-      await loadAll();
+      setAssignments((prev) => prev.filter((a) => a.id !== id));
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not delete assignment."
@@ -194,14 +212,14 @@ function TeacherAssignmentsContent() {
     setError(null);
     setToast(null);
     try {
-      await teacherApi.createObservation({
+      const created = await teacherApi.createObservation({
         child_id: values.child_id,
         category: values.category,
         observation_text: values.observation_text,
       });
       resetObs();
+      setObservations((prev) => [created, ...prev]);
       setToast("Classroom observation recorded!");
-      await loadAll();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not record observation."
@@ -213,10 +231,10 @@ function TeacherAssignmentsContent() {
     setError(null);
     setToast(null);
     try {
-      await teacherApi.createFeedback(values);
+      const created = await teacherApi.createFeedback(values);
       resetFb();
+      setFeedbackList((prev) => [created, ...prev]);
       setToast("Feedback sent to parent!");
-      await loadAll();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not send feedback."
@@ -228,14 +246,14 @@ function TeacherAssignmentsContent() {
     setError(null);
     setToast(null);
     try {
-      await teacherApi.createAnnouncement({
+      const created = await teacherApi.createAnnouncement({
         title: values.title,
         body: values.body,
         class_id: values.class_id || null,
       });
       resetAnn();
+      setAnnouncements((prev) => [created, ...prev]);
       setToast("Class announcement published!");
-      await loadAll();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not post announcement."

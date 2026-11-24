@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_roles, verify_child_access
@@ -181,45 +181,52 @@ def get_child_progress(
     """Aggregate real learning progress, rewards, and skills for an authorized learner."""
     child = verify_child_access(db, current_user, child_id)
 
-    total_lessons = db.scalar(select(func.count(Lesson.id)).where(Lesson.status == "published")) or 0
-    lessons_completed = (
-        db.scalar(
-            select(func.count(LessonProgress.id)).where(
-                LessonProgress.child_id == child.id, LessonProgress.status == "completed"
-            )
+    lesson_totals_by_subject = {
+        sid: int(cnt or 0)
+        for sid, cnt in db.execute(
+            select(Lesson.subject_id, func.count(Lesson.id))
+            .where(Lesson.status == "published")
+            .group_by(Lesson.subject_id)
+        ).all()
+    }
+    total_lessons = sum(lesson_totals_by_subject.values())
+
+    done_by_subject: dict[str, int] = {}
+    lessons_completed = 0
+    lesson_secs = 0
+    for subj_id, prog_status, cnt, secs in db.execute(
+        select(
+            Lesson.subject_id,
+            LessonProgress.status,
+            func.count(LessonProgress.id),
+            func.coalesce(func.sum(LessonProgress.time_spent_seconds), 0),
         )
-        or 0
-    )
-    games_played = (
-        db.scalar(
-            select(func.count(ActivityAttempt.id)).where(
-                ActivityAttempt.child_id == child.id, ActivityAttempt.completed.is_(True)
-            )
-        )
-        or 0
-    )
+        .join(Lesson, Lesson.id == LessonProgress.lesson_id)
+        .where(LessonProgress.child_id == child.id)
+        .group_by(Lesson.subject_id, LessonProgress.status)
+    ).all():
+        lesson_secs += int(secs or 0)
+        if prog_status == "completed":
+            c = int(cnt or 0)
+            lessons_completed += c
+            done_by_subject[subj_id] = done_by_subject.get(subj_id, 0) + c
+
+    games_played_raw, game_secs_raw = db.execute(
+        select(
+            func.coalesce(
+                func.sum(case((ActivityAttempt.completed.is_(True), 1), else_=0)), 0
+            ),
+            func.coalesce(func.sum(ActivityAttempt.duration_seconds), 0),
+        ).where(ActivityAttempt.child_id == child.id)
+    ).one()
+    games_played = int(games_played_raw or 0)
+    game_secs = int(game_secs_raw or 0)
+
     home_completed = (
         db.scalar(
             select(func.count(HomeActivityProgress.id)).where(
                 HomeActivityProgress.child_id == child.id,
                 HomeActivityProgress.completed.is_(True),
-            )
-        )
-        or 0
-    )
-
-    lesson_secs = (
-        db.scalar(
-            select(func.coalesce(func.sum(LessonProgress.time_spent_seconds), 0)).where(
-                LessonProgress.child_id == child.id
-            )
-        )
-        or 0
-    )
-    game_secs = (
-        db.scalar(
-            select(func.coalesce(func.sum(ActivityAttempt.duration_seconds), 0)).where(
-                ActivityAttempt.child_id == child.id
             )
         )
         or 0
@@ -253,37 +260,16 @@ def get_child_progress(
     ]
 
     subjects = list(db.scalars(select(Subject).order_by(Subject.sort_order.asc())).all())
-    breakdown: list[SubjectBreakdownItem] = []
-    for subj in subjects:
-        subj_total = (
-            db.scalar(
-                select(func.count(Lesson.id)).where(
-                    Lesson.subject_id == subj.id, Lesson.status == "published"
-                )
-            )
-            or 0
+    breakdown: list[SubjectBreakdownItem] = [
+        SubjectBreakdownItem(
+            subject_id=subj.id,
+            subject_name=subj.name,
+            color_hex=subj.color_hex,
+            lessons_completed=done_by_subject.get(subj.id, 0),
+            total_lessons=lesson_totals_by_subject.get(subj.id, 0),
         )
-        subj_done = (
-            db.scalar(
-                select(func.count(LessonProgress.id))
-                .join(Lesson, Lesson.id == LessonProgress.lesson_id)
-                .where(
-                    LessonProgress.child_id == child.id,
-                    LessonProgress.status == "completed",
-                    Lesson.subject_id == subj.id,
-                )
-            )
-            or 0
-        )
-        breakdown.append(
-            SubjectBreakdownItem(
-                subject_id=subj.id,
-                subject_name=subj.name,
-                color_hex=subj.color_hex,
-                lessons_completed=subj_done,
-                total_lessons=subj_total,
-            )
-        )
+        for subj in subjects
+    ]
 
     return ChildProgressOut(
         child=ChildOut.model_validate(child),

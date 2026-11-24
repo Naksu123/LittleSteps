@@ -45,6 +45,8 @@ export function BrandLogo({ size = "sm", className }: BrandLogoProps) {
         alt="LittleSteps — Small Steps, Big Discoveries."
         width={dims.width}
         height={dims.height}
+        decoding="async"
+        fetchPriority={size === "lg" ? "high" : undefined}
         className={cn("object-contain select-none", SIZE_CLASSES[size])}
       />
     </span>

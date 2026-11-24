@@ -1,19 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import {
   ArrowRight,
   Baby,
@@ -60,10 +52,17 @@ import type {
   NotificationList,
   ParentDashboardData,
   ParentHomeLearningTheme,
-  WeeklyReport,
 } from "@/types";
 
 const ADD_CHILD_DRAFT_KEY = "littlesteps_add_child_draft";
+
+const WeeklyMinutesChart = dynamic(
+  () => import("@/components/charts/WeeklyMinutesChart"),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full rounded-2xl" />,
+  }
+);
 
 function ParentPortalContent() {
   const router = useRouter();
@@ -71,7 +70,6 @@ function ParentPortalContent() {
   const [dashboard, setDashboard] = useState<ParentDashboardData | null>(null);
   const [homeThemes, setHomeThemes] = useState<ParentHomeLearningTheme[]>([]);
   const [notifList, setNotifList] = useState<NotificationList | null>(null);
-  const [childReport, setChildReport] = useState<WeeklyReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
@@ -91,13 +89,15 @@ function ParentPortalContent() {
     }
     setError(null);
     try {
-      const [dash, notifs] = await Promise.all([
-        parentApi.dashboard(),
-        parentApi.notifications(),
-      ]);
+      const dash = await parentApi.dashboard();
       hasLoadedRef.current = true;
       setDashboard(dash);
-      setNotifList(notifs);
+      setNotifList({
+        unread_count:
+          dash.unread_notification_count ??
+          dash.notifications.filter((n) => !n.is_read).length,
+        items: dash.notifications,
+      });
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not load parent dashboard."
@@ -118,25 +118,27 @@ function ParentPortalContent() {
     childItems.find((c) => c.child.id === activeChildId) || childItems[0] || null;
   const currentChildId = activeItem?.child.id;
   const targetChildId = currentChildId || activeChildId || null;
-
-  const loadChildSpecific = useCallback(async (cid: string) => {
-    try {
-      const [home, rep] = await Promise.all([
-        parentApi.homeLearning(cid),
-        parentApi.report(cid),
-      ]);
-      setHomeThemes(home);
-      setChildReport(rep);
-    } catch {
-      // Keep page resilient on secondary load
-    }
-  }, []);
+  const primaryChildId = dashboard?.children[0]?.child.id;
 
   useEffect(() => {
-    if (targetChildId) {
-      void loadChildSpecific(targetChildId);
+    if (!targetChildId || !dashboard) return;
+    if (primaryChildId === targetChildId && dashboard.current_theme) {
+      setHomeThemes([]);
+      return;
     }
-  }, [targetChildId, loadChildSpecific]);
+    let cancelled = false;
+    parentApi
+      .homeLearning(targetChildId)
+      .then((home) => {
+        if (!cancelled) setHomeThemes(home);
+      })
+      .catch(() => {
+        // Keep page resilient on secondary load
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [targetChildId, primaryChildId, dashboard]);
 
   const {
     register,
@@ -231,7 +233,8 @@ function ParentPortalContent() {
       });
       setAddOpen(false);
       setActionToast(`Added ${created.display_name}'s learner profile!`);
-      await Promise.all([refreshUser(), loadParentData()]);
+      void refreshUser();
+      await loadParentData();
     } catch (err) {
       setAddError(
         err instanceof ApiError
@@ -247,9 +250,19 @@ function ParentPortalContent() {
     if (!activeItem) return;
     setEditError(null);
     try {
-      await childrenApi.update(activeItem.child.id, values);
+      const updated = await childrenApi.update(activeItem.child.id, values);
       setEditOpen(false);
-      await Promise.all([refreshUser(), loadParentData()]);
+      setDashboard((prev) =>
+        prev
+          ? {
+              ...prev,
+              children: prev.children.map((item) =>
+                item.child.id === updated.id ? { ...item, child: updated } : item
+              ),
+            }
+          : prev
+      );
+      void refreshUser();
     } catch (err) {
       setEditError(
         err instanceof ApiError ? err.message : "Could not update learner profile."
@@ -271,11 +284,42 @@ function ParentPortalContent() {
           `Awesome family time! ${activeItem.child.display_name} earned +${res.stars_awarded} ⭐!`
         );
       }
-      await Promise.all([
-        loadChildSpecific(activeItem.child.id),
-        loadParentData(),
-        refreshUser(),
-      ]);
+      setDashboard((prev) =>
+        prev
+          ? {
+              ...prev,
+              children: prev.children.map((item) =>
+                item.child.id === activeItem.child.id
+                  ? {
+                      ...item,
+                      child: { ...item.child, total_stars: res.total_stars },
+                    }
+                  : item
+              ),
+              current_theme:
+                prev.current_theme && primaryChildId === activeItem.child.id
+                  ? {
+                      ...prev.current_theme,
+                      home_activities: prev.current_theme.home_activities.map(
+                        (a) =>
+                          a.id === homeActivityId
+                            ? { ...a, completed: res.completed }
+                            : a
+                      ),
+                    }
+                  : prev.current_theme,
+            }
+          : prev
+      );
+      setHomeThemes((prev) =>
+        prev.map((th) => ({
+          ...th,
+          home_activities: th.home_activities.map((a) =>
+            a.id === homeActivityId ? { ...a, completed: res.completed } : a
+          ),
+        }))
+      );
+      void refreshUser();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not update activity status."
@@ -286,20 +330,39 @@ function ParentPortalContent() {
   }
 
   async function handleMarkRead(notifId: string) {
+    setNotifList((prev) =>
+      prev
+        ? {
+            unread_count: Math.max(
+              0,
+              prev.items.some((n) => n.id === notifId && !n.is_read)
+                ? prev.unread_count - 1
+                : prev.unread_count
+            ),
+            items: prev.items.map((n) =>
+              n.id === notifId ? { ...n, is_read: true } : n
+            ),
+          }
+        : prev
+    );
     try {
       await parentApi.markNotificationRead(notifId);
-      const updated = await parentApi.notifications();
-      setNotifList(updated);
     } catch {
       // ignore transient error
     }
   }
 
   async function handleMarkAllRead() {
+    setNotifList((prev) =>
+      prev
+        ? {
+            unread_count: 0,
+            items: prev.items.map((n) => ({ ...n, is_read: true })),
+          }
+        : prev
+    );
     try {
       await parentApi.markAllNotificationsRead();
-      const updated = await parentApi.notifications();
-      setNotifList(updated);
     } catch {
       // ignore
     }
@@ -580,23 +643,7 @@ function ParentPortalContent() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-56 sm:h-64 lg:h-72 min-w-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={activeItem.weekly_activity}
-                    margin={{ top: 8, right: 8, left: -12, bottom: 4 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#24334D14" />
-                    <XAxis dataKey="day" tick={{ fill: "#24334D", fontSize: 11 }} />
-                    <YAxis width={36} tick={{ fill: "#24334D", fontSize: 11 }} />
-                    <Tooltip />
-                    <Bar
-                      dataKey="minutes"
-                      name="Minutes"
-                      fill="#78C8F5"
-                      radius={[10, 10, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                <WeeklyMinutesChart data={activeItem.weekly_activity} />
               </CardContent>
             </Card>
 
@@ -789,8 +836,8 @@ function ParentPortalContent() {
                 <CardTitle>Assigned Activities & Teacher Notes</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {childReport?.assigned_activities.length ? (
-                  childReport.assigned_activities.map((a) => (
+                {activeItem?.assigned_activities?.length ? (
+                  activeItem.assigned_activities.map((a) => (
                     <div
                       key={a.id}
                       className="rounded-2xl bg-[#FFF9F0] p-3.5 border border-[#24334D]/8 flex items-center justify-between gap-2"

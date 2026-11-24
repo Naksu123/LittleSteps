@@ -48,6 +48,8 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const drawCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const drawRectRef = useRef<DOMRect | null>(null);
   const usedColorsRef = useRef<Set<string>>(new Set(["#78C8F5"]));
 
   const [tool, setTool] = useState<"brush" | "fill" | "eraser">("brush");
@@ -78,9 +80,12 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
     renderTemplate(templateKey);
   }, [renderTemplate, templateKey]);
 
-  function getCanvasCoords(e: React.PointerEvent<HTMLCanvasElement>) {
+  function getCanvasCoords(
+    e: React.PointerEvent<HTMLCanvasElement>,
+    cachedRect?: DOMRect | null
+  ) {
     const canvas = canvasRef.current!;
-    const rect = canvas.getBoundingClientRect();
+    const rect = cachedRect || canvas.getBoundingClientRect();
     return {
       x: ((e.clientX - rect.left) / rect.width) * canvas.width,
       y: ((e.clientY - rect.top) / rect.height) * canvas.height,
@@ -93,7 +98,8 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const pt = getCanvasCoords(e);
+    const rect = canvas.getBoundingClientRect();
+    const pt = getCanvasCoords(e, rect);
 
     if (tool === "fill") {
       const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -114,6 +120,8 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
 
     canvas.setPointerCapture(e.pointerId);
     drawingRef.current = true;
+    drawCtxRef.current = ctx;
+    drawRectRef.current = rect;
     lastPointRef.current = pt;
 
     const strokeColor = tool === "eraser" ? "#FFFFFF" : color;
@@ -128,11 +136,10 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
   function handlePointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!drawingRef.current || tool === "fill") return;
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx || !lastPointRef.current) return;
+    const ctx = drawCtxRef.current || canvas?.getContext("2d");
+    if (!canvas || !ctx || !lastPointRef.current) return;
 
-    const pt = getCanvasCoords(e);
+    const pt = getCanvasCoords(e, drawRectRef.current);
     ctx.strokeStyle = tool === "eraser" ? "#FFFFFF" : color;
     ctx.lineWidth = brushSize;
     ctx.lineCap = "round";
@@ -147,6 +154,8 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
   function handlePointerUp() {
     drawingRef.current = false;
     lastPointRef.current = null;
+    drawCtxRef.current = null;
+    drawRectRef.current = null;
   }
 
   async function handleSave() {
@@ -162,10 +171,10 @@ export function ColoringCanvas({ childId, onSaved }: ColoringCanvasProps) {
         image_data: dataUrl,
         palette_used: Array.from(usedColorsRef.current),
       });
-      await refreshUser();
       playChime("celebrate");
       setSavedNotice("Saved to your Art Gallery! Great job, Young Artist!");
       onSaved(created);
+      void refreshUser();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not save your artwork."

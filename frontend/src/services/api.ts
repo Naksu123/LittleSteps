@@ -71,16 +71,59 @@ function getApiBase(): string {
 
 const CONTENT_CACHE_TTL_MS = 60_000;
 const PORTAL_CACHE_TTL_MS = 30_000;
+const MAX_CACHE_ENTRIES = 200;
+const GET_TIMEOUT_MS = 15_000;
+const MUTATION_TIMEOUT_MS = 25_000;
 const responseCache = new Map<string, { expiresAt: number; value: unknown }>();
 const inflightRequests = new Map<string, Promise<unknown>>();
+const staleBrowserContentPaths = new Set<string>();
+
+function deleteKeysMatching(predicate: (key: string) => boolean): void {
+  for (const key of responseCache.keys()) {
+    if (predicate(key)) {
+      responseCache.delete(key);
+    }
+  }
+  for (const key of inflightRequests.keys()) {
+    if (predicate(key)) {
+      inflightRequests.delete(key);
+    }
+  }
+}
+
+export function invalidatePortalCache(): void {
+  deleteKeysMatching((key) => !key.startsWith("content:"));
+}
 
 export function invalidateApiCache(): void {
-  responseCache.clear();
-  inflightRequests.clear();
+  invalidatePortalCache();
 }
 
 export function invalidateContentCache(): void {
-  invalidateApiCache();
+  deleteKeysMatching(
+    (key) =>
+      key.startsWith("content:") ||
+      key === "admin:content" ||
+      key === "teacher:lessons" ||
+      key.startsWith("teacher:themes")
+  );
+  staleBrowserContentPaths.add("/api/subjects");
+  staleBrowserContentPaths.add("/api/themes");
+  staleBrowserContentPaths.add("/api/lessons");
+  staleBrowserContentPaths.add("/api/games");
+}
+
+function setBoundedCache(key: string, value: unknown, ttlMs: number): void {
+  if (!responseCache.has(key) && responseCache.size >= MAX_CACHE_ENTRIES) {
+    const oldestKey = responseCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      responseCache.delete(oldestKey);
+    }
+  }
+  responseCache.set(key, {
+    expiresAt: Date.now() + ttlMs,
+    value,
+  });
 }
 
 async function cachedGet<T>(
@@ -102,10 +145,7 @@ async function cachedGet<T>(
   }
   const promise = fetcher()
     .then((res) => {
-      responseCache.set(key, {
-        expiresAt: Date.now() + ttlMs,
-        value: res,
-      });
+      setBoundedCache(key, res, ttlMs);
       return res;
     })
     .finally(() => {
@@ -208,7 +248,9 @@ export function setStoredTokens(accessToken: string, refreshToken: string): void
 export function clearStoredTokens(): void {
   memoryAccessToken = null;
   memoryRefreshToken = null;
-  invalidateContentCache();
+  responseCache.clear();
+  inflightRequests.clear();
+  staleBrowserContentPaths.clear();
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(ACCESS_TOKEN_KEY);
@@ -330,10 +372,48 @@ async function apiRequest<T>(
     headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
-  const response = await fetch(`${getApiBase()}${path}`, {
-    ...options,
-    headers,
-  });
+  const method = (options.method || "GET").toUpperCase();
+  const basePath = path.split("?")[0];
+  let cacheMode = options.cache;
+  if (!cacheMode && method === "GET" && staleBrowserContentPaths.size > 0) {
+    const matchedPrefix = Array.from(staleBrowserContentPaths).find((p) =>
+      basePath.startsWith(p)
+    );
+    if (matchedPrefix) {
+      cacheMode = "no-cache";
+      if (basePath === matchedPrefix) {
+        staleBrowserContentPaths.delete(matchedPrefix);
+      }
+    }
+  }
+
+  let controller: AbortController | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  if (!options.signal && typeof AbortController !== "undefined") {
+    controller = new AbortController();
+    const timeoutMs = method === "GET" ? GET_TIMEOUT_MS : MUTATION_TIMEOUT_MS;
+    timeoutId = setTimeout(() => controller?.abort(), timeoutMs);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBase()}${path}`, {
+      ...options,
+      headers,
+      ...(cacheMode ? { cache: cacheMode } : {}),
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new ApiError(
+        "The request took too long. Please check your connection and try again.",
+        408
+      );
+    }
+    throw err;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 
   if (response.status === 401 && retryOnAuth && !isPublicAuthEndpoint) {
     const newAccess = await attemptTokenRefresh();
@@ -343,9 +423,8 @@ async function apiRequest<T>(
     notifyAuthExpired();
   }
 
-  const method = (options.method || "GET").toUpperCase();
   if (response.ok && method !== "GET") {
-    invalidateApiCache();
+    invalidatePortalCache();
   }
 
   if (response.status === 204) {
@@ -513,23 +592,37 @@ export const childrenApi = {
 
 export const contentApi = {
   subjects: () =>
-    cachedGet("subjects", () => apiRequest<Subject[]>("/api/subjects")),
-  themes: () => cachedGet("themes", () => apiRequest<Theme[]>("/api/themes")),
+    cachedGet("content:subjects", () => apiRequest<Subject[]>("/api/subjects")),
+  themes: () =>
+    cachedGet("content:themes", () => apiRequest<Theme[]>("/api/themes")),
   themeDetail: (id: string) =>
-    cachedGet(`theme:${id}`, () => apiRequest<ThemeDetail>(`/api/themes/${id}`)),
+    cachedGet(`content:theme:${id}`, () =>
+      apiRequest<ThemeDetail>(`/api/themes/${id}`)
+    ),
   lessons: () =>
-    cachedGet("lessons", () => apiRequest<Lesson[]>("/api/lessons")),
+    cachedGet("content:lessons", () => apiRequest<Lesson[]>("/api/lessons")),
   lessonDetail: (id: string) =>
-    cachedGet(`lesson:${id}`, () =>
+    cachedGet(`content:lesson:${id}`, () =>
       apiRequest<LessonDetail>(`/api/lessons/${id}`)
     ),
   lessonQuiz: (id: string) =>
-    cachedGet(`lesson-quiz:${id}`, () =>
+    cachedGet(`content:lesson-quiz:${id}`, () =>
       apiRequest<Quiz | null>(`/api/lessons/${id}/quiz`)
     ),
-  games: () => cachedGet("games", () => apiRequest<Game[]>("/api/games")),
+  games: () =>
+    cachedGet("content:games", async () => {
+      const list = await apiRequest<Game[]>("/api/games");
+      for (const g of list) {
+        setBoundedCache(`content:game:${g.id}`, g, CONTENT_CACHE_TTL_MS);
+      }
+      return list;
+    }),
+  gamesSummary: () =>
+    cachedGet("content:games-summary", () =>
+      apiRequest<Game[]>("/api/games?include_config=false")
+    ),
   game: (id: string) =>
-    cachedGet(`game:${id}`, () => apiRequest<Game>(`/api/games/${id}`)),
+    cachedGet(`content:game:${id}`, () => apiRequest<Game>(`/api/games/${id}`)),
 };
 
 export const progressApi = {
@@ -1190,11 +1283,6 @@ export function prefetchPortalData(
   switch (cleanPath) {
     case "/parent":
       void parentApi.dashboard().catch(() => {});
-      void parentApi.notifications().catch(() => {});
-      if (cid) {
-        void parentApi.homeLearning(cid).catch(() => {});
-        void parentApi.report(cid).catch(() => {});
-      }
       break;
     case "/parent/home-learning":
       void parentApi.homeLearning(cid).catch(() => {});
@@ -1210,7 +1298,7 @@ export function prefetchPortalData(
       void contentApi.subjects().catch(() => {});
       void contentApi.themes().catch(() => {});
       void contentApi.lessons().catch(() => {});
-      void contentApi.games().catch(() => {});
+      void contentApi.gamesSummary().catch(() => {});
       if (cid) {
         void progressApi.summary(cid).catch(() => {});
       }
@@ -1231,7 +1319,7 @@ export function prefetchPortalData(
       void teacherApi.classes().catch(() => {});
       void teacherApi.students().catch(() => {});
       void contentApi.lessons().catch(() => {});
-      void contentApi.games().catch(() => {});
+      void contentApi.gamesSummary().catch(() => {});
       break;
     case "/teacher/analytics":
       void teacherApi.analytics().catch(() => {});

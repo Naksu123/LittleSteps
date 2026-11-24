@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
@@ -125,31 +125,34 @@ def record_activity_progress(
 
     earned = stars_for_score(payload.score_pct) if payload.completed else 0
     today = local_today()
+    cutoff_utc = datetime.now(timezone.utc) - timedelta(days=2)
 
     if payload.game_id:
-        prior_attempts = list(
+        prior_dates = list(
             db.scalars(
-                select(ActivityAttempt).where(
+                select(ActivityAttempt.created_at).where(
                     ActivityAttempt.child_id == child.id,
                     ActivityAttempt.game_id == payload.game_id,
                     ActivityAttempt.completed.is_(True),
+                    ActivityAttempt.created_at >= cutoff_utc,
                 )
             ).all()
         )
     else:
-        prior_attempts = list(
+        prior_dates = list(
             db.scalars(
-                select(ActivityAttempt).where(
+                select(ActivityAttempt.created_at).where(
                     ActivityAttempt.child_id == child.id,
                     ActivityAttempt.activity_id == payload.activity_id,
                     ActivityAttempt.completed.is_(True),
+                    ActivityAttempt.created_at >= cutoff_utc,
                 )
             ).all()
         )
 
     already_today = any(
-        attempt.created_at is not None and to_local_date(attempt.created_at) == today
-        for attempt in prior_attempts
+        dt is not None and to_local_date(dt) == today
+        for dt in prior_dates
     )
     stars_awarded = earned if (payload.completed and not already_today) else 0
 

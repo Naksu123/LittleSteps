@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -25,6 +25,7 @@ class HomeActivityProgress(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "home_activity_progress"
     __table_args__ = (
         UniqueConstraint("child_id", "home_activity_id", name="uq_child_home_activity"),
+        Index("ix_home_activity_progress_child_completed", "child_id", "completed"),
     )
 
     child_id: Mapped[str] = mapped_column(

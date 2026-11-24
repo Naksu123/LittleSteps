@@ -22,7 +22,7 @@ class Child(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     daily_goal_minutes: Mapped[int] = mapped_column(Integer, default=20, nullable=False)
     streak_days: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_stars: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True, nullable=False)
     last_activity_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
     parent_links: Mapped[list["ParentChildRelationship"]] = relationship(
@@ -58,7 +58,7 @@ class SchoolClass(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     age_group: Mapped[str] = mapped_column(String(30), default="4-5", nullable=False)
     academic_year: Mapped[str] = mapped_column(String(30), default="2026-2027", nullable=False)
     room_label: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True, nullable=False)
 
     enrollments: Mapped[list["ClassEnrollment"]] = relationship(
         back_populates="school_class", cascade="all, delete-orphan"

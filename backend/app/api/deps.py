@@ -2,13 +2,18 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import decode_token
-from app.models.learner import Child
+from app.models.learner import (
+    Child,
+    ClassEnrollment,
+    ParentChildRelationship,
+    TeacherClassAssignment,
+)
 from app.models.user import User
-from app.repositories.learner_repo import parent_owns_child, teacher_has_child
 from app.services.auth_service import get_authenticated_user_from_claims
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -92,19 +97,40 @@ def verify_child_access(db: Session, user: User, child_id: str) -> Child:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Child not found.")
         return child
 
-    allowed = False
-    if "parent" in roles and parent_owns_child(db, user.id, child_id):
-        allowed = True
-    elif "teacher" in roles and teacher_has_child(db, user.id, child_id):
-        allowed = True
+    child: Child | None = None
+    if "parent" in roles:
+        child = db.scalar(
+            select(Child)
+            .join(ParentChildRelationship, ParentChildRelationship.child_id == Child.id)
+            .where(
+                ParentChildRelationship.parent_user_id == user.id,
+                ParentChildRelationship.child_id == child_id,
+            )
+            .limit(1)
+        )
 
-    if not allowed:
+    if child is None and "teacher" in roles:
+        child = db.scalar(
+            select(Child)
+            .join(ClassEnrollment, ClassEnrollment.child_id == Child.id)
+            .join(
+                TeacherClassAssignment,
+                TeacherClassAssignment.class_id == ClassEnrollment.class_id,
+            )
+            .where(
+                TeacherClassAssignment.teacher_user_id == user.id,
+                ClassEnrollment.child_id == child_id,
+                ClassEnrollment.status == "active",
+            )
+            .limit(1)
+        )
+
+    if child is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not authorized to access this learner profile.",
         )
 
-    child = db.get(Child, child_id)
-    if not child or not child.is_active:
+    if not child.is_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Child not found.")
     return child

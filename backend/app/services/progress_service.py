@@ -139,61 +139,79 @@ def evaluate_badges(db: Session, child: Child) -> list[ChildReward]:
             select(ChildReward.badge_key).where(ChildReward.child_id == child.id)
         ).all()
     )
+    if len(existing_keys) == len(BADGES):
+        return []
 
-    completed_lessons = (
-        db.scalar(
-            select(func.count(LessonProgress.id)).where(
-                LessonProgress.child_id == child.id,
-                LessonProgress.status == "completed",
-            )
-        )
-        or 0
-    )
-    completed_games_count = (
-        db.scalar(
-            select(func.count(ActivityAttempt.id)).where(
-                ActivityAttempt.child_id == child.id,
-                ActivityAttempt.completed.is_(True),
-                ActivityAttempt.game_id.is_not(None),
-            )
-        )
-        or 0
-    )
-    distinct_games = (
-        db.scalar(
-            select(func.count(func.distinct(ActivityAttempt.game_id))).where(
-                ActivityAttempt.child_id == child.id,
-                ActivityAttempt.completed.is_(True),
-                ActivityAttempt.game_id.is_not(None),
-            )
-        )
-        or 0
-    )
-    perfect_quizzes = (
-        db.scalar(
-            select(func.count(QuizResult.id)).where(
-                QuizResult.child_id == child.id,
-                QuizResult.score_pct == 100,
-            )
-        )
-        or 0
-    )
-    artworks_count = (
-        db.scalar(
-            select(func.count(ChildArtwork.id)).where(ChildArtwork.child_id == child.id)
-        )
-        or 0
-    )
-
-    earned_conditions = {
-        "first_lesson": completed_lessons >= 1,
-        "lesson_explorer": completed_lessons >= 3,
-        "game_starter": completed_games_count >= 1,
-        "game_champion": distinct_games >= 5,
-        "quiz_whiz": perfect_quizzes >= 1,
+    earned_conditions: dict[str, bool] = {
         "streak_3": child.streak_days >= 3,
-        "young_artist": artworks_count >= 1,
     }
+
+    if "first_lesson" not in existing_keys or "lesson_explorer" not in existing_keys:
+        completed_lessons = (
+            db.scalar(
+                select(func.count(LessonProgress.id)).where(
+                    LessonProgress.child_id == child.id,
+                    LessonProgress.status == "completed",
+                )
+            )
+            or 0
+        )
+        earned_conditions["first_lesson"] = completed_lessons >= 1
+        earned_conditions["lesson_explorer"] = completed_lessons >= 3
+
+    if "game_champion" not in existing_keys:
+        completed_games_count, distinct_games = db.execute(
+            select(
+                func.count(ActivityAttempt.id),
+                func.count(func.distinct(ActivityAttempt.game_id)),
+            ).where(
+                ActivityAttempt.child_id == child.id,
+                ActivityAttempt.completed.is_(True),
+                ActivityAttempt.game_id.is_not(None),
+            )
+        ).one()
+        earned_conditions["game_starter"] = (completed_games_count or 0) >= 1
+        earned_conditions["game_champion"] = (distinct_games or 0) >= 5
+    elif "game_starter" not in existing_keys:
+        completed_games_count = (
+            db.scalar(
+                select(func.count(ActivityAttempt.id)).where(
+                    ActivityAttempt.child_id == child.id,
+                    ActivityAttempt.completed.is_(True),
+                    ActivityAttempt.game_id.is_not(None),
+                )
+            )
+            or 0
+        )
+        earned_conditions["game_starter"] = completed_games_count >= 1
+
+    if "quiz_whiz" not in existing_keys:
+        perfect_quizzes = (
+            db.scalar(
+                select(func.count(QuizResult.id)).where(
+                    QuizResult.child_id == child.id,
+                    QuizResult.score_pct == 100,
+                )
+            )
+            or 0
+        )
+        earned_conditions["quiz_whiz"] = perfect_quizzes >= 1
+
+    if "young_artist" not in existing_keys:
+        artworks_count = (
+            db.scalar(
+                select(func.count(ChildArtwork.id)).where(ChildArtwork.child_id == child.id)
+            )
+            or 0
+        )
+        earned_conditions["young_artist"] = artworks_count >= 1
+
+    qualified_keys = [
+        key for key, qualified in earned_conditions.items()
+        if qualified and key not in existing_keys
+    ]
+    if not qualified_keys:
+        return []
 
     parent_ids = list(
         db.scalars(
@@ -206,9 +224,7 @@ def evaluate_badges(db: Session, child: Child) -> list[ChildReward]:
     now = datetime.now(timezone.utc)
     new_rewards: list[ChildReward] = []
 
-    for key, qualified in earned_conditions.items():
-        if not qualified or key in existing_keys:
-            continue
+    for key in qualified_keys:
         title, desc, stars_value = BADGES[key]
         reward = ChildReward(
             child_id=child.id,
@@ -244,8 +260,7 @@ def finalize_learning_event(
     child.total_stars += stars_awarded
     db.flush()
     new_rewards = evaluate_badges(db, child)
+    if new_rewards:
+        db.flush()
     db.commit()
-    db.refresh(child)
-    for reward in new_rewards:
-        db.refresh(reward)
     return new_rewards

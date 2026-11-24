@@ -89,8 +89,8 @@ export function GamePlayer({
         duration_seconds: gameResult.duration_seconds,
         completed: true,
       });
-      await refreshUser();
       setCelebration({ result: saved });
+      void refreshUser();
     } catch {
       setCelebration({
         result: {

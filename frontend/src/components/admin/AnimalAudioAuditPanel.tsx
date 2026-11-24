@@ -15,7 +15,6 @@ import {
 import {
   ANIMAL_SOUND_LIST,
   playAnimalSound,
-  preloadAnimalSounds,
   stopAnimalSound,
   type AnimalCategory,
   type AnimalSoundKey,
@@ -94,7 +93,7 @@ export function AnimalAudioAuditPanel() {
       }
     }
 
-    preloadAnimalSounds();
+    // Audio files are loaded on demand when auditioning or running Play All.
 
     return () => {
       mountedRef.current = false;

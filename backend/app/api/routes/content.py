@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -30,9 +30,12 @@ router = APIRouter(tags=["Learning Content"])
 
 @router.get("/subjects", response_model=list[SubjectOut])
 def list_subjects(
-    _current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    response: Response,
+    _current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Return all active learning modules with published lesson counts."""
+    response.headers["Cache-Control"] = "private, max-age=60"
     subjects = list(
         db.scalars(
             select(Subject).where(Subject.is_active.is_(True)).order_by(Subject.sort_order.asc())
@@ -59,9 +62,12 @@ def list_subjects(
 
 @router.get("/themes", response_model=list[ThemeOut])
 def list_themes(
-    _current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    response: Response,
+    _current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """List weekly learning themes ordered by week number."""
+    response.headers["Cache-Control"] = "private, max-age=60"
     themes = list(
         db.scalars(
             select(Theme).where(Theme.status == "published").order_by(Theme.week_number.asc())
@@ -73,10 +79,12 @@ def list_themes(
 @router.get("/themes/{theme_id}", response_model=ThemeDetailOut)
 def get_theme_detail(
     theme_id: str,
+    response: Response,
     _current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Return full theme detail including objectives, parent guide, home activities, and lessons."""
+    response.headers["Cache-Control"] = "private, max-age=60"
     theme = db.scalar(
         select(Theme)
         .options(
@@ -118,12 +126,14 @@ def get_theme_detail(
 
 @router.get("/lessons", response_model=list[LessonOut])
 def list_lessons(
+    response: Response,
     subject_id: Optional[str] = Query(default=None),
     theme_id: Optional[str] = Query(default=None),
     _current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """List published lessons optionally filtered by subject or theme."""
+    response.headers["Cache-Control"] = "private, max-age=60"
     stmt = select(Lesson).where(Lesson.status == "published")
     if subject_id:
         stmt = stmt.where(Lesson.subject_id == subject_id)
@@ -136,10 +146,12 @@ def list_lessons(
 @router.get("/lessons/{lesson_id}", response_model=LessonDetailOut)
 def get_lesson(
     lesson_id: str,
+    response: Response,
     _current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Retrieve a single lesson with its sorted practice activities."""
+    response.headers["Cache-Control"] = "private, max-age=60"
     lesson = db.scalar(
         select(Lesson)
         .options(selectinload(Lesson.activities))
@@ -168,10 +180,12 @@ def get_lesson(
 @router.get("/lessons/{lesson_id}/quiz", response_model=Optional[QuizOut])
 def get_lesson_quiz(
     lesson_id: str,
+    response: Response,
     _current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Return the mini check-in quiz associated with a lesson, or null if none."""
+    response.headers["Cache-Control"] = "private, max-age=60"
     lesson = db.scalar(
         select(Lesson).where(Lesson.id == lesson_id, Lesson.status == "published")
     )
@@ -200,13 +214,16 @@ def get_lesson_quiz(
 
 @router.get("/games", response_model=list[GameOut])
 def list_games(
+    response: Response,
     subject_id: Optional[str] = Query(default=None),
     theme_id: Optional[str] = Query(default=None),
     week: Optional[str] = Query(default=None),
+    include_config: bool = Query(default=True),
     _current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List educational games with weekly rotating 12-question configurations."""
+    """List educational games with optional weekly rotating 12-question configurations."""
+    response.headers["Cache-Control"] = "private, max-age=60"
     stmt = select(Game).where(Game.status == "published")
     if subject_id:
         stmt = stmt.where(Game.subject_id == subject_id)
@@ -223,7 +240,19 @@ def list_games(
             theme_id=g.theme_id,
             instructions=g.instructions,
             difficulty_level=g.difficulty_level,
-            config_json=build_weekly_game_config(g.slug, g.config_json, week=week),
+            config_json=(
+                build_weekly_game_config(g.slug, g.config_json, week=week)
+                if include_config
+                else {
+                    "engine": g.game_type,
+                    "skill": (
+                        g.config_json.get("skill")
+                        if isinstance(g.config_json, dict)
+                        else g.title
+                    )
+                    or g.title,
+                }
+            ),
             status=g.status,
         )
         for g in games
@@ -233,11 +262,13 @@ def list_games(
 @router.get("/games/{game_id}", response_model=GameOut)
 def get_game(
     game_id: str,
+    response: Response,
     week: Optional[str] = Query(default=None),
     _current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Retrieve a single published educational game with the active week's question mix."""
+    response.headers["Cache-Control"] = "private, max-age=60"
     game = db.scalar(
         select(Game).where(Game.id == game_id, Game.status == "published")
     )

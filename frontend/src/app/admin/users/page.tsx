@@ -105,7 +105,15 @@ function AdminUsersContent() {
       });
       reset({ full_name: "", email: "", password: "", role: "teacher" });
       setToast(`Created account for ${created.full_name} (${created.roles.join(", ")}).`);
-      await loadUsers();
+      if (
+        !search.trim() &&
+        (!roleFilter || created.roles.includes(roleFilter as UserRole)) &&
+        statusFilter !== "false"
+      ) {
+        setUsers((prev) => [created, ...prev]);
+      } else {
+        await loadUsers();
+      }
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not create user account."
@@ -118,11 +126,14 @@ function AdminUsersContent() {
     setError(null);
     setToast(null);
     try {
-      await adminApi.updateUserStatus(target.id, !target.is_active);
+      const updated = await adminApi.updateUserStatus(
+        target.id,
+        !target.is_active
+      );
+      setUsers((prev) => prev.map((u) => (u.id === target.id ? updated : u)));
       setToast(
         `${target.full_name} is now ${!target.is_active ? "active" : "inactive"}.`
       );
-      await loadUsers();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not update account status."
@@ -163,13 +174,15 @@ function AdminUsersContent() {
     setError(null);
     setToast(null);
     try {
-      await adminApi.updateUser(editingUser.id, {
+      const updated = await adminApi.updateUser(editingUser.id, {
         full_name: editFullName.trim(),
         roles: editRoles,
       });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === editingUser.id ? updated : u))
+      );
       setToast(`Updated ${editFullName.trim()}'s profile and roles.`);
       setEditingUser(null);
-      await loadUsers();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not update user roles."

@@ -41,13 +41,6 @@ class UserSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    user: UserSummary
-
-
 class MeChildSummary(BaseModel):
     id: str
     display_name: str
@@ -59,6 +52,14 @@ class MeChildSummary(BaseModel):
     streak_days: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    user: UserSummary
+    children: list[MeChildSummary] = []
 
 
 class MeResponse(BaseModel):

@@ -1,7 +1,3 @@
-"use client";
-
-import { motion } from "framer-motion";
-
 interface MascotProps {
   message?: string;
   size?: "sm" | "md" | "lg";
@@ -17,11 +13,7 @@ export function Mascot({ message, size = "md" }: MascotProps) {
 
   return (
     <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 max-w-full">
-      <motion.div
-        animate={{ y: [0, -6, 0] }}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-        className={`${dims} shrink-0`}
-      >
+      <div className={`${dims} shrink-0 animate-float-slow`}>
         <svg
           viewBox="0 0 120 120"
           fill="none"
@@ -46,7 +38,7 @@ export function Mascot({ message, size = "md" }: MascotProps) {
           <circle cx="34" cy="62" r="5" fill="#FF9C8C" fillOpacity="0.65" />
           <circle cx="86" cy="62" r="5" fill="#FF9C8C" fillOpacity="0.65" />
         </svg>
-      </motion.div>
+      </div>
       {message && (
         <div className="relative rounded-3xl bg-white px-4 sm:px-5 py-2.5 sm:py-3 shadow-sm border-2 border-[#78C8F5]/40 text-sm sm:text-base font-semibold text-[#24334D] max-w-full sm:max-w-md text-center sm:text-left break-words">
           {message}

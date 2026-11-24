@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Any, Optional
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -10,7 +10,10 @@ from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin, utc_now
 
 class LessonProgress(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "lesson_progress"
-    __table_args__ = (UniqueConstraint("child_id", "lesson_id", name="uq_child_lesson_progress"),)
+    __table_args__ = (
+        UniqueConstraint("child_id", "lesson_id", name="uq_child_lesson_progress"),
+        Index("ix_lesson_progress_child_status", "child_id", "status"),
+    )
 
     child_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("children.id", ondelete="CASCADE"), index=True, nullable=False
@@ -27,6 +30,11 @@ class LessonProgress(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
 class ActivityAttempt(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "activity_attempts"
+    __table_args__ = (
+        Index("ix_activity_attempts_child_completed", "child_id", "completed"),
+        Index("ix_activity_attempts_child_game_completed", "child_id", "game_id", "completed"),
+        Index("ix_activity_attempts_child_created", "child_id", "created_at"),
+    )
 
     child_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("children.id", ondelete="CASCADE"), index=True, nullable=False
@@ -46,6 +54,7 @@ class ActivityAttempt(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
 class QuizResult(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "quiz_results"
+    __table_args__ = (Index("ix_quiz_results_child_created", "child_id", "created_at"),)
 
     child_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("children.id", ondelete="CASCADE"), index=True, nullable=False
@@ -77,6 +86,7 @@ class SkillProgress(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
 class ChildReward(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "child_rewards"
+    __table_args__ = (Index("ix_child_rewards_child_badge", "child_id", "badge_key"),)
 
     child_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("children.id", ondelete="CASCADE"), index=True, nullable=False

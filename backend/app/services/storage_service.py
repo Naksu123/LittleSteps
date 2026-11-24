@@ -1,9 +1,11 @@
 import os
+import time
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 from app.core.config import settings
@@ -17,6 +19,10 @@ ALLOWED_MIME_TYPES = {
     "application/pdf": ".pdf",
 }
 
+_S3_CLIENT_CONFIG = Config(connect_timeout=3, read_timeout=5, retries={"max_attempts": 2})
+_HEALTH_CACHE_TTL_SECONDS = 15.0
+_MAX_SIZE_CACHE_ENTRIES = 1000
+
 
 class StorageValidationError(ValueError):
     """Raised when an uploaded file fails MIME type or size validation."""
@@ -25,11 +31,31 @@ class StorageValidationError(ValueError):
 class StorageService:
     """Abstracts local filesystem storage (dev) and private Amazon S3 signed URLs (prod)."""
 
+    def __init__(self) -> None:
+        self._s3_clients: dict[tuple[str, str, int], Any] = {}
+        self._size_cache: dict[str, int] = {}
+        self._health_cache: Optional[tuple[float, str, dict[str, str]]] = None
+
     def _get_s3_client(self):
-        kwargs: dict[str, str] = {"region_name": settings.AWS_REGION}
-        if settings.S3_ENDPOINT_URL:
-            kwargs["endpoint_url"] = settings.S3_ENDPOINT_URL
-        return boto3.client("s3", **kwargs)
+        client_factory = boto3.client
+        cache_key = (
+            settings.AWS_REGION,
+            settings.S3_ENDPOINT_URL or "",
+            id(client_factory),
+        )
+        client = self._s3_clients.get(cache_key)
+        if client is None:
+            kwargs: dict[str, Any] = {
+                "region_name": settings.AWS_REGION,
+                "config": _S3_CLIENT_CONFIG,
+            }
+            if settings.S3_ENDPOINT_URL:
+                kwargs["endpoint_url"] = settings.S3_ENDPOINT_URL
+            client = client_factory("s3", **kwargs)
+            if len(self._s3_clients) > 16:
+                self._s3_clients.clear()
+            self._s3_clients[cache_key] = client
+        return client
 
     def validate_file(self, content_type: str, size_bytes: int) -> str:
         if content_type not in ALLOWED_MIME_TYPES:
@@ -62,6 +88,8 @@ class StorageService:
                 ServerSideEncryption="AES256",
                 CacheControl="private, max-age=3600",
             )
+            if settings.APP_ENV != "test":
+                self._size_cache[key] = len(content)
             return key
 
         upload_root = self._local_upload_root()
@@ -70,6 +98,8 @@ class StorageService:
             raise StorageValidationError("Invalid storage key path.")
         os.makedirs(target.parent, exist_ok=True)
         target.write_bytes(content)
+        if settings.APP_ENV != "test":
+            self._size_cache[key] = len(content)
         return key
 
     def create_presigned_upload_url(
@@ -130,42 +160,67 @@ class StorageService:
         return target.read_bytes()
 
     def get_file_size(self, key: str) -> int:
+        if settings.APP_ENV != "test" and key in self._size_cache:
+            return self._size_cache[key]
+
+        size = 0
         if settings.STORAGE_BACKEND == "s3":
             try:
                 resp = self._get_s3_client().head_object(
                     Bucket=settings.S3_BUCKET_NAME,
                     Key=key,
                 )
-                return int(resp.get("ContentLength", 0))
+                size = int(resp.get("ContentLength", 0))
             except (BotoCoreError, ClientError):
-                return 0
+                size = 0
+        else:
+            try:
+                target = self._resolve_local_path(key)
+                if target.is_file():
+                    size = target.stat().st_size
+            except (StorageValidationError, OSError):
+                size = 0
 
-        try:
-            target = self._resolve_local_path(key)
-            if target.is_file():
-                return target.stat().st_size
-        except (StorageValidationError, OSError):
-            return 0
-        return 0
+        if settings.APP_ENV != "test" and size > 0:
+            if len(self._size_cache) >= _MAX_SIZE_CACHE_ENTRIES:
+                self._size_cache.clear()
+            self._size_cache[key] = size
+        return size
 
-    def check_health(self) -> dict[str, str]:
+    def check_health(self, use_cache: bool = False) -> dict[str, str]:
         """Verify local storage directory or S3 bucket reachability."""
+        now = time.monotonic()
+        if (
+            use_cache
+            and settings.APP_ENV != "test"
+            and self._health_cache is not None
+            and now - self._health_cache[0] < _HEALTH_CACHE_TTL_SECONDS
+            and self._health_cache[1] == settings.STORAGE_BACKEND
+        ):
+            return dict(self._health_cache[2])
+
         if settings.STORAGE_BACKEND == "s3":
             if not settings.S3_BUCKET_NAME:
-                return {"backend": "s3", "status": "error"}
+                result = {"backend": "s3", "status": "error"}
+            else:
+                try:
+                    self._get_s3_client().head_bucket(Bucket=settings.S3_BUCKET_NAME)
+                    result = {"backend": "s3", "status": "connected"}
+                except (BotoCoreError, ClientError, Exception):
+                    result = {"backend": "s3", "status": "error"}
+        else:
             try:
-                self._get_s3_client().head_bucket(Bucket=settings.S3_BUCKET_NAME)
-                return {"backend": "s3", "status": "connected"}
-            except (BotoCoreError, ClientError, Exception):
-                return {"backend": "s3", "status": "error"}
+                os.makedirs(self._local_upload_root(), exist_ok=True)
+                result = {"backend": "local", "status": "ready"}
+            except OSError:
+                result = {"backend": "local", "status": "error"}
 
-        try:
-            os.makedirs(self._local_upload_root(), exist_ok=True)
-            return {"backend": "local", "status": "ready"}
-        except OSError:
-            return {"backend": "local", "status": "error"}
+        if settings.APP_ENV != "test":
+            self._health_cache = (now, settings.STORAGE_BACKEND, result)
+        return dict(result)
 
     def delete(self, key: str) -> None:
+        self._size_cache.pop(key, None)
         if settings.STORAGE_BACKEND == "s3":
             try:
                 client = self._get_s3_client()

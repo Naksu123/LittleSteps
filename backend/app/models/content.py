@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -31,7 +31,7 @@ class Theme(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     title: Mapped[str] = mapped_column(String(150), nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     color_hex: Mapped[str] = mapped_column(String(20), default="#FFE58A", nullable=False)
-    status: Mapped[str] = mapped_column(String(30), default="published", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="published", index=True, nullable=False)
     published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by: Mapped[Optional[str]] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -67,6 +67,7 @@ class LearningObjective(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
 class Lesson(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "lessons"
+    __table_args__ = (Index("ix_lessons_status_subject", "status", "subject_id"),)
 
     subject_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("subjects.id", ondelete="RESTRICT"), index=True, nullable=False
@@ -81,7 +82,7 @@ class Lesson(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     age_group: Mapped[str] = mapped_column(String(20), default="4-6", nullable=False)
     estimated_minutes: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     audio_narration_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(30), default="published", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="published", index=True, nullable=False)
     created_by: Mapped[Optional[str]] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -113,6 +114,7 @@ class Activity(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
 class Game(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "games"
+    __table_args__ = (Index("ix_games_status_subject", "status", "subject_id"),)
 
     slug: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     title: Mapped[str] = mapped_column(String(150), nullable=False)
@@ -126,7 +128,7 @@ class Game(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     instructions: Mapped[str] = mapped_column(Text, nullable=False)
     difficulty_level: Mapped[str] = mapped_column(String(20), default="easy", nullable=False)
     config_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
-    status: Mapped[str] = mapped_column(String(30), default="published", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="published", index=True, nullable=False)
 
     subject: Mapped["Subject"] = relationship(back_populates="games")
     theme: Mapped[Optional["Theme"]] = relationship(back_populates="games")

@@ -70,6 +70,19 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
     } catch {
       // Ignore storage errors
     }
+    if (typeof window.matchMedia === "function") {
+      const mql = window.matchMedia("(min-width: 1024px)");
+      const syncMatch = (matches: boolean) => setIsDesktopViewport(matches);
+      syncMatch(mql.matches);
+      const onChange = (e: MediaQueryListEvent) => syncMatch(e.matches);
+      if (typeof mql.addEventListener === "function") {
+        mql.addEventListener("change", onChange);
+        return () => mql.removeEventListener("change", onChange);
+      }
+      mql.addListener(onChange);
+      return () => mql.removeListener(onChange);
+    }
+
     const syncViewport = () => setIsDesktopViewport(window.innerWidth >= 1024);
     syncViewport();
     window.addEventListener("resize", syncViewport);
@@ -444,7 +457,7 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
       </aside>
 
       {/* Mobile Top Header */}
-      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-2 bg-white/95 backdrop-blur-sm border-b border-[#24334D]/10 px-3.5 py-2.5 print:hidden">
+      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-2 bg-white border-b border-[#24334D]/10 px-3.5 py-2.5 print:hidden">
         <div className="flex items-center gap-2 min-w-0">
           <Link href="/" className="flex items-center shrink-0">
             <BrandLogo size="xs" />
@@ -475,7 +488,7 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
       {/* Mobile Slide-Over Drawer */}
       {mobileDrawerOpen && (
         <div
-          className="md:hidden fixed inset-0 z-50 flex bg-[#24334D]/45 backdrop-blur-xs animate-fade-in print:hidden"
+          className="md:hidden fixed inset-0 z-50 flex bg-[#24334D]/55 animate-fade-in print:hidden"
           onClick={(e) => {
             if (e.target === e.currentTarget) setMobileDrawerOpen(false);
           }}
@@ -592,7 +605,7 @@ export function PortalShell({ title, subtitle, children }: PortalShellProps) {
       {/* Mobile Bottom Quick-Navigation Bar */}
       <nav
         aria-label="Mobile quick navigation"
-        className="md:hidden fixed inset-x-0 bottom-0 z-30 bg-white/95 backdrop-blur-md border-t border-[#24334D]/10 px-1 pt-1 pb-[calc(0.25rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(36,51,77,0.06)] print:hidden"
+        className="md:hidden fixed inset-x-0 bottom-0 z-30 bg-white border-t border-[#24334D]/10 px-1 pt-1 pb-[calc(0.25rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(36,51,77,0.06)] print:hidden"
       >
         <div className="grid grid-cols-5 gap-1">
           {uniqueNav.map((item) => {

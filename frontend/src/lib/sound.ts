@@ -35,6 +35,18 @@ let bgmBusFilter: BiquadFilterNode | null = null;
 
 const stopCallbacks: Array<() => void> = [];
 
+let cachedSoundEnabled: boolean | null = null;
+let cachedSoundVolume: number | null = null;
+let cachedMusicEnabled: boolean | null = null;
+
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("storage", (e) => {
+    if (!e.key || e.key === SOUND_KEY) cachedSoundEnabled = null;
+    if (!e.key || e.key === VOLUME_KEY) cachedSoundVolume = null;
+    if (!e.key || e.key === MUSIC_KEY) cachedMusicEnabled = null;
+  });
+}
+
 export { PRESCHOOL_SONGS, type PreschoolSongSummary };
 
 function emitAudioChange(): void {
@@ -70,9 +82,14 @@ export function onAudioSettingsChange(listener: () => void): () => void {
 
 export function getSoundEnabled(): boolean {
   if (typeof window === "undefined") return true;
+  if (process.env.NODE_ENV !== "test" && cachedSoundEnabled !== null) {
+    return cachedSoundEnabled;
+  }
   try {
     const val = window.localStorage.getItem(SOUND_KEY);
-    return val !== "false";
+    const enabled = val !== "false";
+    if (process.env.NODE_ENV !== "test") cachedSoundEnabled = enabled;
+    return enabled;
   } catch {
     return true;
   }
@@ -80,6 +97,7 @@ export function getSoundEnabled(): boolean {
 
 export function setSoundEnabled(enabled: boolean): void {
   if (typeof window === "undefined") return;
+  cachedSoundEnabled = enabled;
   try {
     window.localStorage.setItem(SOUND_KEY, enabled ? "true" : "false");
   } catch {
@@ -96,12 +114,19 @@ export function setSoundEnabled(enabled: boolean): void {
 
 export function getSoundVolume(): number {
   if (typeof window === "undefined") return DEFAULT_VOLUME;
+  if (process.env.NODE_ENV !== "test" && cachedSoundVolume !== null) {
+    return cachedSoundVolume;
+  }
   try {
     const raw = window.localStorage.getItem(VOLUME_KEY);
-    if (raw === null) return DEFAULT_VOLUME;
+    if (raw === null) {
+      if (process.env.NODE_ENV !== "test") cachedSoundVolume = DEFAULT_VOLUME;
+      return DEFAULT_VOLUME;
+    }
     const parsed = Number.parseFloat(raw);
-    if (Number.isNaN(parsed)) return DEFAULT_VOLUME;
-    return Math.min(1, Math.max(0, parsed));
+    const vol = Number.isNaN(parsed) ? DEFAULT_VOLUME : Math.min(1, Math.max(0, parsed));
+    if (process.env.NODE_ENV !== "test") cachedSoundVolume = vol;
+    return vol;
   } catch {
     return DEFAULT_VOLUME;
   }
@@ -113,6 +138,7 @@ export function setSoundVolume(volume: number): void {
     1,
     Math.max(0, Number.isFinite(volume) ? volume : DEFAULT_VOLUME)
   );
+  cachedSoundVolume = clamped;
   try {
     window.localStorage.setItem(VOLUME_KEY, clamped.toFixed(2));
   } catch {
@@ -124,8 +150,13 @@ export function setSoundVolume(volume: number): void {
 
 export function getMusicEnabled(): boolean {
   if (typeof window === "undefined") return true;
+  if (process.env.NODE_ENV !== "test" && cachedMusicEnabled !== null) {
+    return cachedMusicEnabled;
+  }
   try {
-    return window.localStorage.getItem(MUSIC_KEY) !== "false";
+    const enabled = window.localStorage.getItem(MUSIC_KEY) !== "false";
+    if (process.env.NODE_ENV !== "test") cachedMusicEnabled = enabled;
+    return enabled;
   } catch {
     return true;
   }
@@ -133,6 +164,7 @@ export function getMusicEnabled(): boolean {
 
 export function setMusicEnabled(enabled: boolean): void {
   if (typeof window === "undefined") return;
+  cachedMusicEnabled = enabled;
   try {
     window.localStorage.setItem(MUSIC_KEY, enabled ? "true" : "false");
   } catch {

@@ -53,7 +53,7 @@ export function Dialog({
 
   const dialogNode = (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#24334D]/55 p-4 backdrop-blur-xs overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#24334D]/60 p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}

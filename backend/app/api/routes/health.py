@@ -12,21 +12,21 @@ from app.services.storage_service import storage_service
 router = APIRouter(tags=["Health"])
 
 
-def _probe_dependencies(db: Session) -> tuple[str, dict[str, str]]:
+def _probe_dependencies(db: Session, *, use_storage_cache: bool = False) -> tuple[str, dict[str, str]]:
     db_status = "connected"
     try:
         db.execute(text("SELECT 1"))
     except Exception:
         db_status = "error"
 
-    storage_health = storage_service.check_health()
+    storage_health = storage_service.check_health(use_cache=use_storage_cache)
     return db_status, storage_health
 
 
 @router.get("/health")
 def health_check(db: Session = Depends(get_db)) -> dict[str, object]:
     """Verify API availability, live database connectivity, and storage backend status."""
-    db_status, storage_health = _probe_dependencies(db)
+    db_status, storage_health = _probe_dependencies(db, use_storage_cache=True)
 
     return {
         "status": "ok" if db_status == "connected" else "degraded",

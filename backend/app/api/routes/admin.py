@@ -1063,22 +1063,24 @@ def get_admin_analytics(
     db: Session = Depends(get_db),
 ):
     """Return platform-wide user breakdown, 7-day learning activity, and storage analytics."""
-    users = list(
-        db.scalars(
-            select(User).options(selectinload(User.user_roles).selectinload(UserRole.role))
-        ).all()
-    )
-    users_by_role = {"admin": 0, "teacher": 0, "parent": 0}
     active_users = 0
     inactive_users = 0
-    for user in users:
-        if user.is_active:
-            active_users += 1
+    for is_active, cnt in db.execute(
+        select(User.is_active, func.count(User.id)).group_by(User.is_active)
+    ).all():
+        if is_active:
+            active_users += int(cnt or 0)
         else:
-            inactive_users += 1
-        for role_name in user.role_names:
-            if role_name in users_by_role:
-                users_by_role[role_name] += 1
+            inactive_users += int(cnt or 0)
+
+    users_by_role = {"admin": 0, "teacher": 0, "parent": 0}
+    for role_name, cnt in db.execute(
+        select(Role.name, func.count(UserRole.id))
+        .join(UserRole, UserRole.role_id == Role.id)
+        .group_by(Role.name)
+    ).all():
+        if role_name in users_by_role:
+            users_by_role[role_name] = int(cnt or 0)
 
     total_children = db.scalar(select(func.count(Child.id))) or 0
 
@@ -1088,42 +1090,89 @@ def get_admin_analytics(
         d: {"lessons": 0, "games": 0, "home_activities": 0} for d in days
     }
     window_start = days[0]
+    window_cutoff_dt = datetime.combine(
+        window_start - timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc
+    )
     active_learner_ids: set[str] = set()
 
-    lesson_rows = list(db.scalars(select(LessonProgress)).all())
-    total_lessons_completed = 0
-    for lp in lesson_rows:
-        if lp.status == "completed":
-            total_lessons_completed += 1
-            dt = _to_utc(lp.completed_at or lp.updated_at or lp.created_at)
-            if dt:
-                d = dt.date()
-                if d >= window_start:
-                    active_learner_ids.add(lp.child_id)
-                if d in day_buckets:
-                    day_buckets[d]["lessons"] += 1
-
-    attempt_rows = list(db.scalars(select(ActivityAttempt)).all())
-    total_game_attempts = len(attempt_rows)
-    for att in attempt_rows:
-        dt = _to_utc(att.created_at)
+    total_lessons_completed = (
+        db.scalar(
+            select(func.count(LessonProgress.id)).where(LessonProgress.status == "completed")
+        )
+        or 0
+    )
+    recent_lesson_rows = db.execute(
+        select(
+            LessonProgress.child_id,
+            LessonProgress.completed_at,
+            LessonProgress.updated_at,
+            LessonProgress.created_at,
+        ).where(
+            LessonProgress.status == "completed",
+            func.coalesce(
+                LessonProgress.completed_at,
+                LessonProgress.updated_at,
+                LessonProgress.created_at,
+            )
+            >= window_cutoff_dt,
+        )
+    ).all()
+    for cid, completed_at, updated_at, created_at in recent_lesson_rows:
+        dt = _to_utc(completed_at or updated_at or created_at)
         if dt:
             d = dt.date()
             if d >= window_start:
-                active_learner_ids.add(att.child_id)
-            if att.completed and d in day_buckets:
+                active_learner_ids.add(cid)
+            if d in day_buckets:
+                day_buckets[d]["lessons"] += 1
+
+    total_game_attempts = db.scalar(select(func.count(ActivityAttempt.id))) or 0
+    recent_attempt_rows = db.execute(
+        select(
+            ActivityAttempt.child_id,
+            ActivityAttempt.completed,
+            ActivityAttempt.created_at,
+        ).where(ActivityAttempt.created_at >= window_cutoff_dt)
+    ).all()
+    for cid, completed, created_at in recent_attempt_rows:
+        dt = _to_utc(created_at)
+        if dt:
+            d = dt.date()
+            if d >= window_start:
+                active_learner_ids.add(cid)
+            if completed and d in day_buckets:
                 day_buckets[d]["games"] += 1
 
-    home_rows = list(
-        db.scalars(select(HomeActivityProgress).where(HomeActivityProgress.completed.is_(True))).all()
+    total_home_completed = (
+        db.scalar(
+            select(func.count(HomeActivityProgress.id)).where(
+                HomeActivityProgress.completed.is_(True)
+            )
+        )
+        or 0
     )
-    total_home_completed = len(home_rows)
-    for ha in home_rows:
-        dt = _to_utc(ha.completed_at or ha.updated_at or ha.created_at)
+    recent_home_rows = db.execute(
+        select(
+            HomeActivityProgress.child_id,
+            HomeActivityProgress.completed_at,
+            HomeActivityProgress.updated_at,
+            HomeActivityProgress.created_at,
+        ).where(
+            HomeActivityProgress.completed.is_(True),
+            func.coalesce(
+                HomeActivityProgress.completed_at,
+                HomeActivityProgress.updated_at,
+                HomeActivityProgress.created_at,
+            )
+            >= window_cutoff_dt,
+        )
+    ).all()
+    for cid, completed_at, updated_at, created_at in recent_home_rows:
+        dt = _to_utc(completed_at or updated_at or created_at)
         if dt:
             d = dt.date()
             if d >= window_start:
-                active_learner_ids.add(ha.child_id)
+                active_learner_ids.add(cid)
             if d in day_buckets:
                 day_buckets[d]["home_activities"] += 1
 

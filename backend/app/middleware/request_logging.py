@@ -2,37 +2,55 @@ import logging
 import time
 import uuid
 
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
+from starlette.datastructures import Headers, MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 _http_logger = logging.getLogger("littlesteps.http")
 
 
-class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    """Attach X-Request-ID and emit structured non-PII HTTP access logs for CloudWatch."""
+class RequestLoggingMiddleware:
+    """Pure ASGI middleware to attach X-Request-ID and emit structured non-PII HTTP access logs."""
 
-    async def dispatch(self, request: Request, call_next) -> Response:
-        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        headers = Headers(scope=scope)
+        request_id = headers.get("x-request-id") or uuid.uuid4().hex
         start = time.perf_counter()
+        status_code = 500
 
-        response = await call_next(request)
-        duration_ms = round((time.perf_counter() - start) * 1000.0, 2)
-        response.headers["X-Request-ID"] = request_id
+        async def send_wrapper(message: Message) -> None:
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = int(message.get("status", 500))
+                response_headers = MutableHeaders(scope=message)
+                response_headers["X-Request-ID"] = request_id
+            await send(message)
 
-        client_ip = request.client.host if request.client else "unknown"
-        _http_logger.info(
-            "%s %s -> %s",
-            request.method,
-            request.url.path,
-            response.status_code,
-            extra={
-                "request_id": request_id,
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": response.status_code,
-                "duration_ms": duration_ms,
-                "client_ip": client_ip,
-            },
-        )
-        return response
+        try:
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            duration_ms = round((time.perf_counter() - start) * 1000.0, 2)
+            method = scope.get("method", "GET")
+            path = scope.get("path", "/")
+            client = scope.get("client")
+            client_ip = client[0] if client else "unknown"
+            _http_logger.info(
+                "%s %s -> %s",
+                method,
+                path,
+                status_code,
+                extra={
+                    "request_id": request_id,
+                    "method": method,
+                    "path": path,
+                    "status_code": status_code,
+                    "duration_ms": duration_ms,
+                    "client_ip": client_ip,
+                },
+            )

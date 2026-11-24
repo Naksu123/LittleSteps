@@ -138,6 +138,9 @@ def _build_engine() -> Engine:
             if is_file_sqlite:
                 cursor.execute("PRAGMA journal_mode=WAL")
                 cursor.execute("PRAGMA synchronous=NORMAL")
+                cursor.execute("PRAGMA cache_size=-16000")
+                cursor.execute("PRAGMA temp_store=MEMORY")
+                cursor.execute("PRAGMA busy_timeout=5000")
             cursor.close()
     elif uses_aws_iam_auth and url == discrete_url:
 

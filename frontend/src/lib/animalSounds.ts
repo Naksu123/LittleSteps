@@ -394,6 +394,18 @@ const ANIMAL_LOOKUP_ALIASES: Record<string, AnimalSoundKey> = {
   "ooh ooh aah aah": "monkey",
 };
 
+const COMPILED_ALIAS_PATTERNS: Array<{ pattern: RegExp; key: AnimalSoundKey }> =
+  Object.entries(ANIMAL_LOOKUP_ALIASES)
+    .filter(([alias]) => alias.length >= 3)
+    .sort((a, b) => b[0].length - a[0].length)
+    .map(([alias, key]) => ({
+      pattern: new RegExp(
+        `\\b${alias.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\b`,
+        "i"
+      ),
+      key,
+    }));
+
 export function resolveAnimalKey(input?: string | null): AnimalSoundKey | null {
   if (!input) return null;
   const cleaned = input
@@ -404,17 +416,8 @@ export function resolveAnimalKey(input?: string | null): AnimalSoundKey | null {
   if (cleaned in ANIMAL_LOOKUP_ALIASES) {
     return ANIMAL_LOOKUP_ALIASES[cleaned];
   }
-  const orderedAliases = Object.entries(ANIMAL_LOOKUP_ALIASES).sort(
-    (a, b) => b[0].length - a[0].length
-  );
-  for (const [alias, key] of orderedAliases) {
-    if (
-      alias.length >= 3 &&
-      new RegExp(
-        `\\b${alias.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\b`,
-        "i"
-      ).test(cleaned)
-    ) {
+  for (const { pattern, key } of COMPILED_ALIAS_PATTERNS) {
+    if (pattern.test(cleaned)) {
       return key;
     }
   }

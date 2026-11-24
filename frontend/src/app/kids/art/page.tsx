@@ -31,39 +31,54 @@ function ArtStudioContent() {
   const [deleteTarget, setDeleteTarget] = useState<Artwork | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const blobUrlsRef = useRef<string[]>([]);
+  const blobMapRef = useRef<Record<string, string>>({});
 
   const revokeAllBlobs = useCallback(() => {
-    blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-    blobUrlsRef.current = [];
+    Object.values(blobMapRef.current).forEach((url) => URL.revokeObjectURL(url));
+    blobMapRef.current = {};
   }, []);
 
   const loadGallery = useCallback(async () => {
     if (!activeChild) {
+      revokeAllBlobs();
       setArtworks([]);
+      setBlobUrls({});
       setLoading(false);
       return;
     }
-    setLoading(true);
+    setLoading((prev) => prev && artworks.length === 0);
     setError(null);
     try {
       const list = await artworkApi.list(activeChild.id);
       setArtworks(list);
 
-      revokeAllBlobs();
-      const entries = await Promise.all(
-        list.map(async (art) => {
-          try {
-            const url = await artworkApi.imageUrl(activeChild.id, art.id);
-            return [art.id, url] as const;
-          } catch {
-            return [art.id, ""] as const;
+      const keepIds = new Set(list.map((a) => a.id));
+      for (const [id, url] of Object.entries(blobMapRef.current)) {
+        if (!keepIds.has(id)) {
+          URL.revokeObjectURL(url);
+          delete blobMapRef.current[id];
+        }
+      }
+
+      const missing = list.filter((art) => !blobMapRef.current[art.id]);
+      if (missing.length > 0) {
+        const fetched = await Promise.all(
+          missing.map(async (art) => {
+            try {
+              const url = await artworkApi.imageUrl(activeChild.id, art.id);
+              return [art.id, url] as const;
+            } catch {
+              return [art.id, ""] as const;
+            }
+          })
+        );
+        for (const [id, url] of fetched) {
+          if (url) {
+            blobMapRef.current[id] = url;
           }
-        })
-      );
-      const validUrls = entries.map(([, u]) => u).filter(Boolean);
-      blobUrlsRef.current = validUrls;
-      setBlobUrls(Object.fromEntries(entries));
+        }
+      }
+      setBlobUrls({ ...blobMapRef.current });
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not load Art Gallery."
@@ -71,7 +86,7 @@ function ArtStudioContent() {
     } finally {
       setLoading(false);
     }
-  }, [activeChild, revokeAllBlobs]);
+  }, [activeChild, artworks.length, revokeAllBlobs]);
 
   useEffect(() => {
     void loadGallery();

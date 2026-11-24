@@ -133,6 +133,15 @@ class ParentSettingsUpdate(BaseModel):
     notifications_enabled: Optional[bool] = None
 
 
+class AssignedActivityOut(BaseModel):
+    id: str
+    title: str
+    lesson_id: Optional[str] = None
+    game_id: Optional[str] = None
+    due_date: Optional[date] = None
+    completed: bool
+
+
 class ParentChildDashboardItem(BaseModel):
     child: ChildOut
     lessons_completed: int
@@ -141,6 +150,7 @@ class ParentChildDashboardItem(BaseModel):
     recent_rewards: list[RewardOut]
     skills: list[SkillProgressOut]
     weekly_activity: list[WeeklyActivityPoint]
+    assigned_activities: list[AssignedActivityOut] = []
 
 
 class ParentDashboardOut(BaseModel):
@@ -148,6 +158,7 @@ class ParentDashboardOut(BaseModel):
     current_theme: Optional[ThemeDetailOut] = None
     announcements: list[AnnouncementOut]
     notifications: list[NotificationOut]
+    unread_notification_count: int = 0
 
 
 class ParentHomeLearningThemeOut(BaseModel):
@@ -181,15 +192,6 @@ class TeacherFeedbackOut(BaseModel):
     message: str
     is_read: bool
     created_at: datetime
-
-
-class AssignedActivityOut(BaseModel):
-    id: str
-    title: str
-    lesson_id: Optional[str] = None
-    game_id: Optional[str] = None
-    due_date: Optional[date] = None
-    completed: bool
 
 
 class RecommendedHomeActivityOut(BaseModel):

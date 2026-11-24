@@ -9,12 +9,27 @@ export interface UserSummary {
   last_login_at?: string | null;
 }
 
+export interface ParentPreferences {
+  preferred_language: "en" | "fil" | "bilingual" | string;
+  daily_screen_limit_mins: number;
+  notifications_enabled: boolean;
+  has_parent_pin: boolean;
+}
+
+export interface GardenState {
+  sunbeams: number;
+  raindrops: number;
+  plants: Record<string, number>;
+  stickers: string[];
+}
+
 export interface TokenResponse {
   access_token: string;
   refresh_token: string;
   token_type: string;
   user: UserSummary;
   children?: Child[];
+  parent_preferences?: ParentPreferences | null;
 }
 
 export interface Child {
@@ -29,11 +44,13 @@ export interface Child {
   streak_days: number;
   total_stars: number;
   is_active?: boolean;
+  garden_state_json?: GardenState;
 }
 
 export interface MeResponse {
   user: UserSummary;
   children: Child[];
+  parent_preferences?: ParentPreferences | null;
 }
 
 export interface Subject {
@@ -85,11 +102,29 @@ export interface Theme {
   published_at?: string | null;
 }
 
+export interface StoryChoiceOption {
+  key: string;
+  emoji: string;
+  label: string;
+  label_fil?: string;
+  feedback: string;
+  feedback_fil?: string;
+  correct: boolean;
+}
+
 export interface LessonSlide {
   title: string;
+  title_fil?: string;
   text: string;
+  text_fil?: string;
   emoji: string;
   narration?: string;
+  narration_fil?: string;
+  story_choice?: {
+    prompt: string;
+    prompt_fil?: string;
+    options: StoryChoiceOption[];
+  };
 }
 
 export interface ActivityItem {
@@ -158,7 +193,9 @@ export type ChoiceVisual =
 
 export interface ChoiceRound {
   prompt: string;
+  prompt_fil?: string;
   speak?: string;
+  speak_fil?: string;
   visual?: ChoiceVisual;
   choices: ChoiceOption[];
   answer: string;
@@ -230,11 +267,31 @@ export interface PuzzleConfig {
   pictures: PuzzlePicture[];
 }
 
+export interface TracePrompt {
+  key: string;
+  label: string;
+  label_fil?: string;
+  speak?: string;
+  speak_fil?: string;
+  emoji?: string;
+  points: [number, number][];
+}
+
+export interface TraceConfig {
+  engine: "trace";
+  skill?: string;
+  feedback?: string[];
+  weekly_key?: string;
+  weekly_label?: string;
+  prompts: TracePrompt[];
+}
+
 export type GameConfig =
   | ChoiceConfig
   | SortConfig
   | MemoryConfig
-  | PuzzleConfig;
+  | PuzzleConfig
+  | TraceConfig;
 
 export interface GameResult {
   score_pct: number;
@@ -332,11 +389,21 @@ export interface WeeklyActivityPoint {
   lessons: number;
 }
 
+export interface ParentChildDigest {
+  strength_en: string;
+  strength_fil: string;
+  next_step_en: string;
+  next_step_fil: string;
+  days_active_this_week: number;
+}
+
 export interface ParentChildDashboardItem {
   child: Child;
   lessons_completed: number;
   total_lessons: number;
   total_time_minutes: number;
+  days_active_this_week?: number;
+  digest?: ParentChildDigest | null;
   recent_rewards: Reward[];
   skills: SkillProgress[];
   weekly_activity: WeeklyActivityPoint[];
@@ -405,9 +472,10 @@ export interface LearningGoal {
 }
 
 export interface ParentSettings {
-  preferred_language: "en" | "fil" | string;
+  preferred_language: "en" | "fil" | "bilingual" | string;
   daily_screen_limit_mins: number;
   notifications_enabled: boolean;
+  has_parent_pin?: boolean;
 }
 
 export interface ActivityHistoryItem {
@@ -464,7 +532,9 @@ export interface WeeklyReport {
   previous_week_lessons: number;
   games_played_this_week: number;
   home_activities_completed_this_week: number;
+  days_active_this_week?: number;
   encouraging_summary: string;
+  encouraging_summary_fil?: string | null;
   strengths: SkillProgress[];
   areas_to_practice: SkillProgress[];
   activity_history: ActivityHistoryItem[];

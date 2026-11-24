@@ -7,6 +7,7 @@ import type {
   PuzzleConfig,
   SortConfig,
   SortItem,
+  TraceConfig,
 } from "@/types";
 
 export type GameDifficulty = "normal" | "medium" | "hard";
@@ -221,6 +222,17 @@ function adaptPuzzleConfig(
   };
 }
 
+function adaptTraceConfig(
+  config: TraceConfig,
+  difficulty: GameDifficulty
+): TraceConfig {
+  const count = difficulty === "normal" ? 2 : difficulty === "medium" ? 3 : 4;
+  return {
+    ...config,
+    prompts: (config.prompts || []).slice(0, count),
+  };
+}
+
 export function adaptGameConfig(
   config: GameConfig,
   difficulty: GameDifficulty
@@ -234,6 +246,8 @@ export function adaptGameConfig(
       return adaptMemoryConfig(config, difficulty);
     case "puzzle":
       return adaptPuzzleConfig(config, difficulty);
+    case "trace":
+      return adaptTraceConfig(config, difficulty);
     default:
       return config;
   }

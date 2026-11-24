@@ -589,6 +589,23 @@ export const childrenApi = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
+  growGarden: (
+    childId: string,
+    payload: {
+      crop_key: "kalabasa" | "kamatis" | "sitaw" | "talong" | "saging" | "sampaguita";
+      use_resource: "sunbeam" | "raindrop";
+    }
+  ) =>
+    apiRequest<Child>(`/api/children/${childId}/garden/grow`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  exportData: (childId: string) =>
+    apiRequest<Record<string, unknown>>(`/api/children/${childId}/export`),
+  remove: (childId: string) =>
+    apiRequest<void>(`/api/children/${childId}`, {
+      method: "DELETE",
+    }),
 };
 
 export const contentApi = {
@@ -679,6 +696,14 @@ export const artworkApi = {
     apiRequest<void>(`/api/children/${childId}/artworks/${artworkId}`, {
       method: "DELETE",
     }),
+  updateApproval: (childId: string, artworkId: string, approved: boolean) =>
+    apiRequest<Artwork>(
+      `/api/children/${childId}/artworks/${artworkId}/approval`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ approved_by_parent: approved }),
+      }
+    ),
   imageUrl: (childId: string, artworkId: string) =>
     apiFetchBlob(`/api/children/${childId}/artworks/${artworkId}/image`),
 };
@@ -781,13 +806,20 @@ export const parentApi = {
       PORTAL_CACHE_TTL_MS
     ),
   updateSettings: (payload: {
-    preferred_language?: "en" | "fil";
+    preferred_language?: "en" | "fil" | "bilingual";
     daily_screen_limit_mins?: number;
     notifications_enabled?: boolean;
+    parent_pin?: string;
+    clear_parent_pin?: boolean;
   }) =>
     apiRequest<ParentSettings>("/api/parent/settings", {
       method: "PATCH",
       body: JSON.stringify(payload),
+    }),
+  verifyPin: (pin: string) =>
+    apiRequest<{ valid: boolean }>("/api/parent/verify-pin", {
+      method: "POST",
+      body: JSON.stringify({ pin }),
     }),
   notifications: () =>
     cachedGet(

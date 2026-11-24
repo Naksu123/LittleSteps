@@ -12,9 +12,10 @@ from app.core.database import get_db
 from app.models.progress import ChildArtwork
 from app.models.user import User
 from app.repositories.learner_repo import parent_owns_child
+from app.schemas.portal import ArtworkApprovalUpdate
 from app.schemas.progress import ArtworkCreate, ArtworkOut
 from app.services.audit_service import record_audit
-from app.services.progress_service import finalize_learning_event
+from app.services.progress_service import finalize_learning_event, local_today, to_local_date
 from app.services.storage_service import StorageValidationError, storage_service
 
 router = APIRouter(prefix="/children", tags=["Child Artworks"])
@@ -79,6 +80,12 @@ def create_artwork(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
         ) from exc
 
+    today = local_today()
+    existing_today = any(
+        art.created_at and to_local_date(art.created_at) == today
+        for art in db.scalars(select(ChildArtwork).where(ChildArtwork.child_id == child.id)).all()
+    )
+
     artwork = ChildArtwork(
         child_id=child.id,
         title=payload.title.strip(),
@@ -97,7 +104,7 @@ def create_artwork(
         resource_id=artwork.id,
         ip_address=request.client.host if request.client else None,
     )
-    finalize_learning_event(db, child, 0)
+    finalize_learning_event(db, child, 0, sunbeams=0 if existing_today else 1)
     db.refresh(artwork)
     return _to_artwork_out(child.id, artwork)
 
@@ -198,3 +205,44 @@ def delete_artwork(
     )
     db.commit()
     return None
+
+
+@router.patch("/{child_id}/artworks/{artwork_id}/approval", response_model=ArtworkOut)
+def update_artwork_approval(
+    child_id: str,
+    artwork_id: str,
+    payload: ArtworkApprovalUpdate,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Toggle parent approval/feature status for a child artwork."""
+    roles = set(current_user.role_names)
+    if "admin" not in roles and not ("parent" in roles and parent_owns_child(db, current_user.id, child_id)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the child's parent or an administrator can update artwork approval.",
+        )
+
+    artwork = db.scalar(
+        select(ChildArtwork).where(
+            ChildArtwork.id == artwork_id,
+            ChildArtwork.child_id == child_id,
+        )
+    )
+    if not artwork:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artwork not found.")
+
+    artwork.approved_by_parent = payload.approved_by_parent
+    record_audit(
+        db,
+        actor_user_id=current_user.id,
+        action="artwork.approval_updated",
+        resource_type="artwork",
+        resource_id=artwork_id,
+        details={"approved_by_parent": payload.approved_by_parent},
+        ip_address=request.client.host if request.client else None,
+    )
+    db.commit()
+    db.refresh(artwork)
+    return _to_artwork_out(child_id, artwork)

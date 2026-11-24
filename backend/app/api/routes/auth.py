@@ -7,13 +7,14 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_optional_current_user
 from app.core.database import get_db
 from app.models.learner import Child
-from app.models.user import User
+from app.models.user import ParentProfile, User
 from app.repositories.learner_repo import get_children_for_parent, get_children_for_teacher
 from app.schemas.auth import (
     LoginRequest,
     LogoutRequest,
     MeChildSummary,
     MeResponse,
+    ParentPreferencesSummary,
     RefreshRequest,
     RegisterRequest,
     StaffLoginRequest,
@@ -39,6 +40,20 @@ def _to_user_summary(user: User) -> UserSummary:
         is_active=user.is_active,
         roles=user.role_names,
         last_login_at=user.last_login_at,
+    )
+
+
+def _get_parent_preferences(db: Session, user: User) -> Optional[ParentPreferencesSummary]:
+    if "parent" not in set(user.role_names):
+        return None
+    profile = db.scalar(select(ParentProfile).where(ParentProfile.user_id == user.id))
+    if not profile:
+        return ParentPreferencesSummary()
+    return ParentPreferencesSummary(
+        preferred_language=profile.preferred_language,
+        daily_screen_limit_mins=profile.daily_screen_limit_mins,
+        notifications_enabled=profile.notifications_enabled,
+        has_parent_pin=bool(profile.parent_pin_hash),
     )
 
 
@@ -78,6 +93,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
         refresh_token=refresh_token,
         user=_to_user_summary(user),
         children=[MeChildSummary.model_validate(c) for c in children],
+        parent_preferences=_get_parent_preferences(db, user),
     )
 
 
@@ -139,4 +155,5 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
     return MeResponse(
         user=_to_user_summary(current_user),
         children=[MeChildSummary.model_validate(c) for c in children],
+        parent_preferences=_get_parent_preferences(db, current_user),
     )

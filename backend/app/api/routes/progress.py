@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user, verify_child_access
 from app.core.database import get_db
-from app.models.content import Activity, Game, Lesson, Quiz, Subject
+from app.models.content import Activity, Game, Lesson, Quiz, Subject, Theme
 from app.models.progress import (
     ActivityAttempt,
     ChildReward,
@@ -70,6 +70,8 @@ def record_lesson_progress(
         existing.completion_pct = max(existing.completion_pct, payload.completion_pct)
 
     stars_awarded = 0
+    sticker_slug = None
+    sunbeams_awarded = 0
     if payload.status == "completed":
         existing.status = "completed"
         existing.completion_pct = 100
@@ -77,6 +79,12 @@ def record_lesson_progress(
             existing.completed_at = datetime.now(timezone.utc)
         stars_awarded = max(0, 3 - existing.stars_earned)
         existing.stars_earned = max(existing.stars_earned, 3)
+        if stars_awarded > 0:
+            sunbeams_awarded = 1
+        if lesson.theme_id:
+            theme = db.get(Theme, lesson.theme_id)
+            if theme:
+                sticker_slug = theme.slug
 
         subj = db.get(Subject, lesson.subject_id)
         skill_name = (lesson.content_json or {}).get("skill") or (
@@ -86,7 +94,13 @@ def record_lesson_progress(
     elif existing.status != "completed":
         existing.status = "in_progress"
 
-    new_rewards = finalize_learning_event(db, child, stars_awarded)
+    new_rewards = finalize_learning_event(
+        db,
+        child,
+        stars_awarded,
+        sunbeams=sunbeams_awarded,
+        sticker_slug=sticker_slug,
+    )
     return ProgressResult(
         stars_awarded=stars_awarded,
         total_stars=child.total_stars,
@@ -168,13 +182,24 @@ def record_activity_progress(
     )
     db.add(attempt)
 
+    sticker_slug = None
     if game:
         skill_name = (game.config_json or {}).get("skill") or game.title
         upsert_skill(db, child.id, game.subject_id, str(skill_name), payload.score_pct)
+        if payload.completed and game.theme_id:
+            theme = db.get(Theme, game.theme_id)
+            if theme:
+                sticker_slug = theme.slug
     elif activity and lesson:
         upsert_skill(db, child.id, lesson.subject_id, activity.title, payload.score_pct)
 
-    new_rewards = finalize_learning_event(db, child, stars_awarded)
+    new_rewards = finalize_learning_event(
+        db,
+        child,
+        stars_awarded,
+        sunbeams=1 if stars_awarded > 0 else 0,
+        sticker_slug=sticker_slug,
+    )
     return ProgressResult(
         stars_awarded=stars_awarded,
         total_stars=child.total_stars,

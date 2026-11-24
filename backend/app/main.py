@@ -4,7 +4,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from sqlalchemy import select, text
+from sqlalchemy import inspect, select, text
 from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 
 import app.models  # noqa: F401
@@ -21,10 +21,39 @@ from app.models import Role, Subject
 logger = logging.getLogger("littlesteps.startup")
 
 
+def _ensure_additive_columns() -> None:
+    """Safely add additive columns on pre-existing local SQLite databases."""
+    try:
+        inspector = inspect(engine)
+        tables = set(inspector.get_table_names())
+        statements: list[str] = []
+        if "parent_profiles" in tables:
+            cols = {c["name"] for c in inspector.get_columns("parent_profiles")}
+            if "parent_pin_hash" not in cols:
+                statements.append(
+                    "ALTER TABLE parent_profiles ADD COLUMN parent_pin_hash VARCHAR(255)"
+                )
+        if "children" in tables:
+            cols = {c["name"] for c in inspector.get_columns("children")}
+            if "garden_state_json" not in cols:
+                statements.append(
+                    "ALTER TABLE children ADD COLUMN garden_state_json TEXT DEFAULT '{}' NOT NULL"
+                )
+        if statements:
+            with engine.begin() as conn:
+                for stmt in statements:
+                    conn.execute(text(stmt))
+    except (OperationalError, ProgrammingError):
+        logger.warning("Could not verify additive columns automatically.")
+
+
 def _ensure_serverless_db_ready() -> None:
     """Ensure tables exist and initial seed data is present without overwriting user accounts."""
     if settings.APP_ENV.lower() == "test":
         return
+
+    _ensure_additive_columns()
+
     if not (settings.SEED_ON_START or os.getenv("VERCEL")):
         return
 

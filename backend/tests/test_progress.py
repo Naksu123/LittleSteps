@@ -140,9 +140,9 @@ def test_game_daily_star_cap_and_game_configs(client: TestClient) -> None:
     games_resp = client.get("/api/games", headers=headers)
     assert games_resp.status_code == 200
     games = games_resp.json()
-    assert len(games) == 16
+    assert len(games) == 18
     for game in games:
-        assert game["config_json"]["engine"] in {"choice", "sort", "memory", "puzzle"}
+        assert game["config_json"]["engine"] in {"choice", "sort", "memory", "puzzle", "trace"}
 
     single_game = client.get(f"/api/games/{games[0]['id']}", headers=headers)
     assert single_game.status_code == 200

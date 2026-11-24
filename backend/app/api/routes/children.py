@@ -1,4 +1,7 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
@@ -7,7 +10,7 @@ from app.core.database import get_db
 from app.models.content import Lesson, Subject
 from app.models.learner import Child, ParentChildRelationship
 from app.models.parent import HomeActivityProgress
-from app.models.progress import ActivityAttempt, ChildReward, LessonProgress, SkillProgress
+from app.models.progress import ActivityAttempt, ChildArtwork, ChildReward, LessonProgress, SkillProgress
 from app.models.user import User
 from app.repositories.learner_repo import (
     get_children_for_parent,
@@ -19,11 +22,14 @@ from app.schemas.learner import (
     ChildOut,
     ChildProgressOut,
     ChildUpdate,
+    GardenActionIn,
     RewardOut,
     SkillProgressOut,
     SubjectBreakdownItem,
 )
 from app.services.audit_service import record_audit
+from app.services.garden_service import grow_garden_crop
+from app.services.storage_service import storage_service
 
 router = APIRouter(prefix="/children", tags=["Learners"])
 
@@ -282,3 +288,99 @@ def get_child_progress(
         skills=skills,
         subject_breakdown=breakdown,
     )
+
+
+@router.post("/{child_id}/garden/grow", response_model=ChildOut)
+def grow_child_garden_crop(
+    child_id: str,
+    payload: GardenActionIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Water or sprout a Bahay Kubo garden crop using earned sunbeams or raindrops."""
+    child = verify_child_access(db, current_user, child_id)
+    try:
+        grow_garden_crop(child, payload.crop_key, payload.use_resource)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(child)
+    return ChildOut.model_validate(child)
+
+
+@router.get("/{child_id}/export")
+def export_child_data(
+    child_id: str,
+    request: Request,
+    current_user: User = Depends(require_roles("parent", "admin")),
+    db: Session = Depends(get_db),
+):
+    """Export minimal, portable JSON summary of a child's progress (RA 10173 portability)."""
+    roles = set(current_user.role_names)
+    if "admin" not in roles and not parent_owns_child(db, current_user.id, child_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to export this learner profile.",
+        )
+
+    progress = get_child_progress(child_id=child_id, current_user=current_user, db=db)
+    record_audit(
+        db,
+        actor_user_id=current_user.id,
+        action="learner.exported",
+        resource_type="child",
+        resource_id=child_id,
+        ip_address=request.client.host if request.client else None,
+    )
+    db.commit()
+
+    payload = {
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "data_privacy_act": "Philippine RA 10173 Child Progress Export",
+        "progress": progress.model_dump(mode="json"),
+    }
+    return JSONResponse(
+        content=payload,
+        headers={
+            "Content-Disposition": f'attachment; filename="littlesteps-{progress.child.display_name.lower()}-export.json"'
+        },
+    )
+
+
+@router.delete("/{child_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_child_profile(
+    child_id: str,
+    request: Request,
+    current_user: User = Depends(require_roles("parent", "admin")),
+    db: Session = Depends(get_db),
+):
+    """Permanently remove a learner profile and stored artworks (parent owner or admin)."""
+    roles = set(current_user.role_names)
+    if "admin" not in roles and not parent_owns_child(db, current_user.id, child_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to delete this learner profile.",
+        )
+
+    child = db.get(Child, child_id)
+    if not child:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Child not found.")
+
+    artworks = list(
+        db.scalars(select(ChildArtwork).where(ChildArtwork.child_id == child.id)).all()
+    )
+    for art in artworks:
+        storage_service.delete(art.storage_key)
+
+    record_audit(
+        db,
+        actor_user_id=current_user.id,
+        action="learner.deleted",
+        resource_type="child",
+        resource_id=child.id,
+        details={"display_name": child.display_name},
+        ip_address=request.client.host if request.client else None,
+    )
+    db.delete(child)
+    db.commit()
+    return None

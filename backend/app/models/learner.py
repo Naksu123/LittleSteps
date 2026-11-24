@@ -1,7 +1,7 @@
 from datetime import date
-from typing import Optional
+from typing import Any, Optional
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Date, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -24,6 +24,7 @@ class Child(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     total_stars: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True, nullable=False)
     last_activity_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    garden_state_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
 
     parent_links: Mapped[list["ParentChildRelationship"]] = relationship(
         back_populates="child", cascade="all, delete-orphan"

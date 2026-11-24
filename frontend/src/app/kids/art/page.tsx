@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
+import { CheckCircle2, Star, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { formatShortDate, getDefaultPortalPath } from "@/lib/utils";
 import { ApiError, artworkApi } from "@/services/api";
@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ColoringCanvas } from "@/components/art/ColoringCanvas";
 import { KidsHeader } from "@/components/kids/KidsHeader";
 import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
@@ -191,24 +192,61 @@ function ArtStudioContent() {
                         )}
                       </div>
                       <CardContent className="p-4 flex items-center justify-between gap-2">
-                        <div>
-                          <p className="font-display font-bold text-[#24334D]">
-                            {art.title}
-                          </p>
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="font-display font-bold text-[#24334D] truncate">
+                              {art.title}
+                            </p>
+                            {art.approved_by_parent && (
+                              <Badge variant="sunshine" className="text-[10px]">
+                                <Star className="h-3 w-3 fill-current" />
+                                Keepsake
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs text-[#24334D]/60">
                             {formatShortDate(art.created_at)}
                           </p>
                         </div>
                         {canDelete && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Delete ${art.title}`}
-                            onClick={() => setDeleteTarget(art)}
-                          >
-                            <Trash2 className="h-4 w-4 text-[#8E3022]" />
-                          </Button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              type="button"
+                              variant={art.approved_by_parent ? "secondary" : "ghost"}
+                              size="sm"
+                              title={
+                                art.approved_by_parent
+                                  ? "Featured Keepsake"
+                                  : "Approve Keepsake"
+                              }
+                              onClick={async () => {
+                                if (!activeChild) return;
+                                try {
+                                  const updated = await artworkApi.updateApproval(
+                                    activeChild.id,
+                                    art.id,
+                                    !art.approved_by_parent
+                                  );
+                                  setArtworks((prev) =>
+                                    prev.map((a) => (a.id === art.id ? updated : a))
+                                  );
+                                } catch {
+                                  // ignore transient failure
+                                }
+                              }}
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Delete ${art.title}`}
+                              onClick={() => setDeleteTarget(art)}
+                            >
+                              <Trash2 className="h-4 w-4 text-[#8E3022]" />
+                            </Button>
+                          </div>
                         )}
                       </CardContent>
                     </Card>

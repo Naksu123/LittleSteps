@@ -89,6 +89,7 @@ class ParentProfile(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     preferred_language: Mapped[str] = mapped_column(String(30), default="en", nullable=False)
     daily_screen_limit_mins: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    parent_pin_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="parent_profile")
 

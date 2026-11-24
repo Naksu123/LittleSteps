@@ -1,5 +1,6 @@
 import random
 from datetime import date, datetime, timedelta, timezone
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
@@ -16,6 +17,8 @@ from app.models.progress import (
     SkillProgress,
 )
 from app.models.system import Notification
+from app.models.user import ParentProfile
+from app.services.garden_service import credit_garden
 
 ENCOURAGEMENTS = [
     "Great job!",
@@ -220,6 +223,14 @@ def evaluate_badges(db: Session, child: Child) -> list[ChildReward]:
             )
         ).all()
     )
+    pref_map: dict[str, bool] = {}
+    if parent_ids:
+        pref_map = {
+            prof.user_id: prof.notifications_enabled
+            for prof in db.scalars(
+                select(ParentProfile).where(ParentProfile.user_id.in_(parent_ids))
+            ).all()
+        }
 
     now = datetime.now(timezone.utc)
     new_rewards: list[ChildReward] = []
@@ -239,6 +250,8 @@ def evaluate_badges(db: Session, child: Child) -> list[ChildReward]:
         child.total_stars += stars_value
 
         for parent_id in parent_ids:
+            if not pref_map.get(parent_id, True):
+                continue
             db.add(
                 Notification(
                     user_id=parent_id,
@@ -253,11 +266,24 @@ def evaluate_badges(db: Session, child: Child) -> list[ChildReward]:
 
 
 def finalize_learning_event(
-    db: Session, child: Child, stars_awarded: int
+    db: Session,
+    child: Child,
+    stars_awarded: int,
+    *,
+    sunbeams: int = 0,
+    raindrops: int = 0,
+    sticker_slug: Optional[str] = None,
 ) -> list[ChildReward]:
-    """Update streak, credit stars, evaluate badges, and commit transaction."""
+    """Update streak, credit stars, garden rewards, evaluate badges, and commit."""
     update_streak(child, local_today())
     child.total_stars += stars_awarded
+    if sunbeams or raindrops or sticker_slug:
+        credit_garden(
+            child,
+            sunbeams=sunbeams,
+            raindrops=raindrops,
+            sticker_slug=sticker_slug,
+        )
     db.flush()
     new_rewards = evaluate_badges(db, child)
     if new_rewards:

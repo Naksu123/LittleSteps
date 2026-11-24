@@ -1,7 +1,9 @@
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.services.garden_service import normalize_garden_state
 
 
 class RegisterRequest(BaseModel):
@@ -41,6 +43,13 @@ class UserSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ParentPreferencesSummary(BaseModel):
+    preferred_language: str = "en"
+    daily_screen_limit_mins: int = 30
+    notifications_enabled: bool = True
+    has_parent_pin: bool = False
+
+
 class MeChildSummary(BaseModel):
     id: str
     display_name: str
@@ -50,6 +59,12 @@ class MeChildSummary(BaseModel):
     favorite_color: str
     total_stars: int
     streak_days: int
+    garden_state_json: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("garden_state_json", mode="before")
+    @classmethod
+    def ensure_garden_state(cls, v: Any) -> dict[str, Any]:
+        return normalize_garden_state(v if isinstance(v, dict) else None)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -60,8 +75,10 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user: UserSummary
     children: list[MeChildSummary] = []
+    parent_preferences: Optional[ParentPreferencesSummary] = None
 
 
 class MeResponse(BaseModel):
     user: UserSummary
     children: list[MeChildSummary]
+    parent_preferences: Optional[ParentPreferencesSummary] = None

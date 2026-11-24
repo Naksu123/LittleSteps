@@ -53,8 +53,11 @@ from app.schemas.portal import (
     NotificationListOut,
     NotificationOut,
     ParentChildDashboardItem,
+    ParentChildDigestOut,
     ParentDashboardOut,
     ParentHomeLearningThemeOut,
+    ParentPinVerifyIn,
+    ParentPinVerifyOut,
     ParentReflectionIn,
     ParentReflectionOut,
     ParentSettingsOut,
@@ -66,6 +69,7 @@ from app.schemas.portal import (
     WeeklyReportOut,
     WorksheetOut,
 )
+from app.core.security import hash_password, verify_password
 from app.services.audit_service import record_audit
 from app.services.progress_service import finalize_learning_event, local_today, to_local_date
 
@@ -177,6 +181,41 @@ def _build_weekly_activity(db: Session, child_id: str) -> list[WeeklyActivityPoi
     return _build_weekly_activity_from_rows(progress_rows, attempt_rows)
 
 
+def _build_child_digest(
+    child: Child,
+    skills_rows: list[tuple[SkillProgress, str]],
+    weekly_pts: list[WeeklyActivityPoint],
+) -> tuple[int, ParentChildDigestOut]:
+    """Generate a deterministic 5-second bilingual English/Filipino weekly parent insight."""
+    days_active = sum(1 for pt in weekly_pts if pt.minutes > 0 or pt.lessons > 0)
+    sorted_skills = sorted(skills_rows, key=lambda pair: pair[0].mastery_pct, reverse=True)
+
+    if sorted_skills:
+        top_skill = sorted_skills[0][0]
+        strength_en = f"{child.display_name} is thriving in {top_skill.skill_name} ({top_skill.mastery_pct}% confidence) and learned on {days_active} day(s) this week."
+        strength_fil = f"Masaya at magaling si {child.display_name} sa {top_skill.skill_name} ({top_skill.mastery_pct}%) at nag-aral ng {days_active} araw ngayong linggo!"
+    else:
+        strength_en = f"{child.display_name} has {child.total_stars} stars and is ready for gentle discovery."
+        strength_fil = f"May {child.total_stars} bituin si {child.display_name} at handa nang matuto ngayong linggo!"
+
+    weakest = sorted(skills_rows, key=lambda pair: pair[0].mastery_pct)
+    if weakest and weakest[0][0].mastery_pct < 75:
+        next_skill = weakest[0][0].skill_name
+        next_step_en = f"Gentle next step: spend 5 playful minutes practicing {next_skill} or enjoy tonight's zero-cost home game together."
+        next_step_fil = f"Susunod na hakbang: maglaro ng 5 minuto sa {next_skill} o subukan ang libreng gawaing-bahay mamayang gabi."
+    else:
+        next_step_en = "Tonight's idea: try the weekly zero-cost Home Learning activity together after dinner!"
+        next_step_fil = "Ideya ngayong gabi: gawin kasama ang pamilya ang libreng Home Activity pagkatapos kumain!"
+
+    return days_active, ParentChildDigestOut(
+        strength_en=strength_en,
+        strength_fil=strength_fil,
+        next_step_en=next_step_en,
+        next_step_fil=next_step_fil,
+        days_active_this_week=days_active,
+    )
+
+
 @router.get("/dashboard", response_model=ParentDashboardOut)
 def get_parent_dashboard(
     current_user: User = Depends(require_roles("parent", "admin")),
@@ -280,12 +319,17 @@ def get_parent_dashboard(
             if a.child_id == child.id or (a.class_id and a.class_id in c_class_ids)
         ]
 
+        weekly_pts = _build_weekly_activity_from_rows(c_lps, c_atts)
+        days_active, digest = _build_child_digest(child, skills_rows, weekly_pts)
+
         child_items.append(
             ParentChildDashboardItem(
                 child=ChildOut.model_validate(child),
                 lessons_completed=lessons_done,
                 total_lessons=total_published_lessons,
                 total_time_minutes=round((lesson_secs + game_secs) / 60),
+                days_active_this_week=days_active,
+                digest=digest,
                 recent_rewards=[RewardOut.model_validate(r) for r in rewards],
                 skills=[
                     SkillProgressOut(
@@ -298,7 +342,7 @@ def get_parent_dashboard(
                     )
                     for sp, subj_name in skills_rows
                 ],
-                weekly_activity=_build_weekly_activity_from_rows(c_lps, c_atts),
+                weekly_activity=weekly_pts,
                 assigned_activities=c_assigned,
             )
         )
@@ -609,6 +653,7 @@ def toggle_home_activity_progress(
     stars_awarded = 0
     if payload.completed and not was_completed_before:
         stars_awarded = 2
+        ha_theme = db.get(Theme, ha.theme_id) if ha.theme_id else None
         _notify_child_teachers(
             db,
             child.id,
@@ -616,7 +661,13 @@ def toggle_home_activity_progress(
             message=f"Completed '{ha.title}' at home with family!",
             category="home_activity",
         )
-        finalize_learning_event(db, child, stars_awarded)
+        finalize_learning_event(
+            db,
+            child,
+            stars_awarded,
+            raindrops=1,
+            sticker_slug=ha_theme.slug if ha_theme else None,
+        )
     else:
         db.commit()
 
@@ -845,7 +896,12 @@ def get_parent_settings(
         db.add(profile)
         db.commit()
         db.refresh(profile)
-    return ParentSettingsOut.model_validate(profile)
+    return ParentSettingsOut(
+        preferred_language=profile.preferred_language,
+        daily_screen_limit_mins=profile.daily_screen_limit_mins,
+        notifications_enabled=profile.notifications_enabled,
+        has_parent_pin=bool(profile.parent_pin_hash),
+    )
 
 
 @router.patch("/settings", response_model=ParentSettingsOut)
@@ -854,7 +910,7 @@ def update_parent_settings(
     current_user: User = Depends(require_roles("parent", "admin")),
     db: Session = Depends(get_db),
 ):
-    """Update guardian screen-time, language, and notification settings."""
+    """Update guardian screen-time, language, PIN, and notification settings."""
     profile = db.scalar(select(ParentProfile).where(ParentProfile.user_id == current_user.id))
     if not profile:
         profile = ParentProfile(user_id=current_user.id)
@@ -862,12 +918,36 @@ def update_parent_settings(
         db.flush()
 
     updates = payload.model_dump(exclude_unset=True)
+    new_pin = updates.pop("parent_pin", None)
+    clear_pin = updates.pop("clear_parent_pin", None)
     for field, val in updates.items():
         setattr(profile, field, val)
+    if clear_pin:
+        profile.parent_pin_hash = None
+    elif new_pin:
+        profile.parent_pin_hash = hash_password(new_pin)
 
     db.commit()
     db.refresh(profile)
-    return ParentSettingsOut.model_validate(profile)
+    return ParentSettingsOut(
+        preferred_language=profile.preferred_language,
+        daily_screen_limit_mins=profile.daily_screen_limit_mins,
+        notifications_enabled=profile.notifications_enabled,
+        has_parent_pin=bool(profile.parent_pin_hash),
+    )
+
+
+@router.post("/verify-pin", response_model=ParentPinVerifyOut)
+def verify_parent_pin(
+    payload: ParentPinVerifyIn,
+    current_user: User = Depends(require_roles("parent", "admin")),
+    db: Session = Depends(get_db),
+):
+    """Verify the guardian's optional 4-digit PIN to exit Kids Mode or extend screen time."""
+    profile = db.scalar(select(ParentProfile).where(ParentProfile.user_id == current_user.id))
+    if not profile or not profile.parent_pin_hash:
+        return ParentPinVerifyOut(valid=False)
+    return ParentPinVerifyOut(valid=verify_password(payload.pin, profile.parent_pin_hash))
 
 
 @router.get("/notifications", response_model=NotificationListOut)
@@ -1195,6 +1275,16 @@ def get_weekly_report(
 
     this_week_minutes = round(this_week_secs / 60)
     prev_week_minutes = round(prev_week_secs / 60)
+    active_dates_this_week: set = set()
+    for lp, _ in lesson_rows:
+        d = to_local_date(_ensure_utc(lp.completed_at or lp.updated_at or lp.created_at))
+        if week_start <= d <= today:
+            active_dates_this_week.add(d)
+    for att, _, _ in attempt_rows:
+        d = to_local_date(_ensure_utc(att.created_at))
+        if week_start <= d <= today:
+            active_dates_this_week.add(d)
+    days_active_this_week = len(active_dates_this_week)
 
     if strengths:
         top_skill = strengths[0].skill_name
@@ -1203,10 +1293,18 @@ def get_weekly_report(
             f"{child.display_name} spent {this_week_minutes} minutes exploring and completed "
             f"{this_week_lessons} lesson(s), showing growing confidence in {top_skill}."
         )
+        encouraging_summary_fil = (
+            f"Ang saya ng linggo ni {child.display_name}! Nag-aral siya ng {this_week_minutes} minuto "
+            f"at nakatapos ng {this_week_lessons} aralin, lalo na sa {top_skill}."
+        )
     else:
         encouraging_summary = (
             f"{child.display_name} is off to a gentle and curious start with "
             f"{this_week_minutes} minutes of playful learning this week. Every small step counts!"
+        )
+        encouraging_summary_fil = (
+            f"Magandang simula para kay {child.display_name} na may {this_week_minutes} minutong "
+            f"masayang pag-aaral ngayong linggo. Bawat maliit na hakbang ay mahalaga!"
         )
 
     return WeeklyReportOut(
@@ -1220,7 +1318,9 @@ def get_weekly_report(
         previous_week_lessons=prev_week_lessons,
         games_played_this_week=games_this_week,
         home_activities_completed_this_week=home_this_week,
+        days_active_this_week=days_active_this_week,
         encouraging_summary=encouraging_summary,
+        encouraging_summary_fil=encouraging_summary_fil,
         strengths=strengths,
         areas_to_practice=areas_to_practice,
         activity_history=history,

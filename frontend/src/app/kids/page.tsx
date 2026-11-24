@@ -18,11 +18,19 @@ import {
   GAME_DIFFICULTY_META,
   getDefaultDifficultyForChild,
 } from "@/lib/gameDifficulty";
+import {
+  KIDS_UI,
+  normalizeLanguage,
+  SUBJECT_FIL,
+  THEME_FIL,
+  tText,
+} from "@/lib/i18n";
 import { speak } from "@/lib/speech";
 import { formatAgeGroupLabel, getDefaultPortalPath } from "@/lib/utils";
 import { contentApi, progressApi } from "@/services/api";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Mascot } from "@/components/brand/Mascot";
+import { BahayKuboGarden } from "@/components/kids/BahayKuboGarden";
 import { JourneyMap } from "@/components/kids/JourneyMap";
 import { KidsMusicControl } from "@/components/kids/KidsMusicControl";
 import { KidsNav, type KidsTabKey } from "@/components/layout/KidsNav";
@@ -48,7 +56,14 @@ const VALID_TABS: KidsTabKey[] = ["home", "learn", "play", "stories", "rewards"]
 function KidsPortalContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, childrenList, activeChildId, setActiveChildId } = useAuth();
+  const {
+    user,
+    childrenList,
+    activeChildId,
+    setActiveChildId,
+    parentPreferences,
+  } = useAuth();
+  const lang = normalizeLanguage(parentPreferences?.preferred_language);
 
   const tabParam = searchParams.get("tab") as KidsTabKey | null;
   const initialTab: KidsTabKey =
@@ -145,10 +160,18 @@ function KidsPortalContent() {
 
   function speakGreeting() {
     const text = activeChild
-      ? `Hello ${activeChild.display_name}! Welcome to LittleSteps. Tap any colorful card to learn and play!`
-      : "Welcome to LittleSteps! Ask a grown-up to add your profile.";
+      ? tText(
+          lang,
+          `Hello ${activeChild.display_name}! Welcome to LittleSteps. Tap any colorful card to learn and play!`,
+          `Kumusta ${activeChild.display_name}! Maligayang pagdating sa LittleSteps. Pindutin ang makulay na card para maglaro!`
+        )
+      : tText(
+          lang,
+          "Welcome to LittleSteps! Ask a grown-up to add your profile.",
+          "Maligayang pagdating! Magpatulong sa magulang para gumawa ng profile."
+        );
     setBannerTip(text);
-    speak(text);
+    speak(text, { lang });
   }
 
   const lessonStatusMap = useMemo(() => {
@@ -224,9 +247,9 @@ function KidsPortalContent() {
 
         {/* Child Profile Switcher */}
         {childrenList.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 rounded-3xl bg-white/90 px-4 sm:px-5 py-3 shadow-xs border border-[#24334D]/8">
-            <span className="font-display text-sm font-semibold text-[#24334D]/75">
-              Who is playing?
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 rounded-3xl bg-white/95 px-4 sm:px-5 py-3 shadow-xs border-2 border-[#FFE58A]">
+            <span className="font-display text-sm font-bold text-[#24334D]">
+              {tText(lang, KIDS_UI.whoIsPlaying.en, KIDS_UI.whoIsPlaying.fil)}
             </span>
             {childrenList.map((child) => {
               const selected = activeChild?.id === child.id;
@@ -234,7 +257,17 @@ function KidsPortalContent() {
                 <button
                   key={child.id}
                   type="button"
-                  onClick={() => setActiveChildId(child.id)}
+                  onClick={() => {
+                    setActiveChildId(child.id);
+                    speak(
+                      tText(
+                        lang,
+                        `Let's learn together, ${child.display_name}!`,
+                        `Tara mag-aral, ${child.display_name}!`
+                      ),
+                      { lang }
+                    );
+                  }}
                   className={`inline-flex items-center gap-2 rounded-full min-h-11 px-3.5 py-1.5 font-display text-sm sm:text-base font-semibold transition-all cursor-pointer ${
                     selected
                       ? "bg-[#FFE58A] text-[#24334D] ring-2 ring-[#24334D]"
@@ -290,21 +323,25 @@ function KidsPortalContent() {
               <div className="space-y-2 min-w-0">
                 <h1 className="font-display text-fluid-hero font-bold text-[#24334D] break-words">
                   {activeChild
-                    ? `Hello, ${activeChild.display_name}!`
-                    : "Hello, Little Explorer!"}
+                    ? `${tText(lang, KIDS_UI.hello.en, KIDS_UI.hello.fil)}, ${activeChild.display_name}!`
+                    : `${tText(lang, KIDS_UI.hello.en, KIDS_UI.hello.fil)}!`}
                 </h1>
                 <p className="text-sm sm:text-base font-semibold text-[#24334D]/75">
                   {bannerTip ||
-                    "Today's Adventure: Discover colors, letters, and friendly games!"}
+                    tText(
+                      lang,
+                      "Today's Adventure: Discover colors, letters, and friendly games!",
+                      "Tara na: Tuklasin ang kulay, titik, bilang, at masayang laro!"
+                    )}
                 </p>
                 <div className="flex flex-wrap justify-center sm:justify-start gap-2 sm:gap-2.5 pt-1">
                   <Badge variant="sunshine" className="text-xs sm:text-sm px-3 sm:px-3.5 py-1.5">
                     <Star className="h-4 w-4 fill-current" />
-                    {displayStars} Stars
+                    {displayStars} {tText(lang, KIDS_UI.starsLabel.en, KIDS_UI.starsLabel.fil)}
                   </Badge>
                   <Badge variant="coral" className="text-xs sm:text-sm px-3 sm:px-3.5 py-1.5">
                     <Flame className="h-4 w-4" />
-                    {displayStreak} Day Streak!
+                    {displayStreak} {tText(lang, KIDS_UI.streakLabel.en, KIDS_UI.streakLabel.fil)}!
                   </Badge>
                   <Button
                     type="button"
@@ -313,7 +350,7 @@ function KidsPortalContent() {
                     onClick={speakGreeting}
                   >
                     <Volume2 className="h-4 w-4" />
-                    Hear Instructions
+                    {tText(lang, KIDS_UI.hearInstructions.en, KIDS_UI.hearInstructions.fil)}
                   </Button>
                   <KidsMusicControl />
                 </div>
@@ -339,7 +376,9 @@ function KidsPortalContent() {
                   <Card className="lg:col-span-8 bg-gradient-to-r from-[#FFE58A] via-[#FFF5CF] to-[#9BE7C4]/70 border-2 border-[#24334D]/10">
                     <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4 h-full">
                       <div className="space-y-1.5">
-                        <Badge variant="neutral">Today&apos;s Mission</Badge>
+                        <Badge variant="neutral">
+                          {tText(lang, KIDS_UI.todaysMission.en, KIDS_UI.todaysMission.fil)}
+                        </Badge>
                         <h2 className="font-display text-2xl font-bold">
                           {missionLesson
                             ? missionLesson.title
@@ -365,7 +404,7 @@ function KidsPortalContent() {
                         className="w-full sm:w-auto shrink-0"
                       >
                         <Sparkles className="h-5 w-5" />
-                        Start Adventure
+                        {tText(lang, KIDS_UI.startAdventure.en, KIDS_UI.startAdventure.fil)}
                       </Button>
                     </CardContent>
                   </Card>
@@ -462,7 +501,7 @@ function KidsPortalContent() {
                           {SUBJECT_EMOJI[subj.slug] || "✨"}
                         </div>
                         <h3 className="font-display text-xl font-bold text-[#24334D]">
-                          {subj.name}
+                          {tText(lang, subj.name, SUBJECT_FIL[subj.slug])}
                         </h3>
                         <p className="text-sm font-semibold text-[#24334D]/70">
                           {subj.description}
@@ -504,7 +543,8 @@ function KidsPortalContent() {
                             : "bg-white text-[#24334D] border-[#24334D]/15"
                         }`}
                       >
-                        {SUBJECT_EMOJI[subj.slug] || "✨"} {subj.name}
+                        {SUBJECT_EMOJI[subj.slug] || "✨"}{" "}
+                        {tText(lang, subj.name, SUBJECT_FIL[subj.slug])}
                       </button>
                     ))}
                   </div>
@@ -628,42 +668,47 @@ function KidsPortalContent() {
                   12 Weekly Adventure Themes
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {themes.map((theme) => (
-                    <Card key={theme.id}>
-                      <div
-                        className="h-2.5 rounded-t-3xl"
-                        style={{ backgroundColor: theme.color_hex }}
-                      />
-                      <CardContent className="p-5 space-y-3">
-                        <Badge variant="lavender">Week {theme.week_number}</Badge>
-                        <h3 className="font-display text-lg font-bold">
-                          {theme.title}
-                        </h3>
-                        <p className="text-sm text-[#24334D]/75">
-                          {theme.summary}
-                        </p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            speak(
-                              `Week ${theme.week_number}: ${theme.title}. ${theme.summary}`
-                            )
-                          }
-                        >
-                          <Volume2 className="h-4 w-4" />
-                          Read to me
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {themes.map((theme) => {
+                    const filMeta = THEME_FIL[theme.slug];
+                    const title = tText(lang, theme.title, filMeta?.title);
+                    const summaryTxt = tText(lang, theme.summary, filMeta?.summary);
+                    return (
+                      <Card key={theme.id}>
+                        <div
+                          className="h-2.5 rounded-t-3xl"
+                          style={{ backgroundColor: theme.color_hex }}
+                        />
+                        <CardContent className="p-5 space-y-3">
+                          <Badge variant="lavender">
+                            {tText(lang, `Week ${theme.week_number}`, `Linggo ${theme.week_number}`)}
+                          </Badge>
+                          <h3 className="font-display text-lg font-bold">
+                            {title}
+                          </h3>
+                          <p className="text-sm text-[#24334D]/75">
+                            {summaryTxt}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              speak(`${title}. ${summaryTxt}`, { lang })
+                            }
+                          >
+                            <Volume2 className="h-4 w-4" />
+                            {tText(lang, "Read to me", "Basahin")}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
             {activeTab === "rewards" && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="font-display text-2xl font-bold">
                     {activeChild
@@ -679,6 +724,8 @@ function KidsPortalContent() {
                     </Badge>
                   </div>
                 </div>
+
+                <BahayKuboGarden child={activeChild} />
 
                 {summary && summary.rewards.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

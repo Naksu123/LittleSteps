@@ -16,6 +16,7 @@ import {
 import {
   formatKindergartenSpeech,
   selectPreferredFemaleVoice,
+  selectPreferredFilipinoVoice,
 } from "@/lib/speech";
 import {
   getCurrentBackgroundSong,
@@ -92,6 +93,15 @@ describe("selectPreferredFemaleVoice & kindergarten speech formatting", () => {
         "Big B makes the bouncy /b/ sound! Count 1–10 🍎⭐"
       )
     ).toBe("Big B makes the bouncy buh sound! Count 1 to 10");
+  });
+
+  it("prefers Filipino fil-PH/tl-PH voices when Filipino mode is active", () => {
+    const selected = selectPreferredFilipinoVoice([
+      makeVoice("Microsoft Zira - English (United States)", "en-US"),
+      makeVoice("Microsoft Blessica Online (Natural) - Filipino", "fil-PH"),
+    ]);
+
+    expect(selected?.lang).toBe("fil-PH");
   });
 });
 
@@ -218,9 +228,11 @@ describe("Preschool random background music playlist & controls", () => {
     setSoundEnabled(true);
   });
 
-  it("includes Twinkle Twinkle Little Star and valid notes across all 8 preschool songs", () => {
-    expect(PRESCHOOL_SONGS).toHaveLength(8);
+  it("includes Twinkle Twinkle Little Star, Filipino folk songs, and valid notes across all 13 preschool songs", () => {
+    expect(PRESCHOOL_SONGS).toHaveLength(13);
     expect(PRESCHOOL_SONGS.some((s) => s.id === "twinkle-twinkle")).toBe(true);
+    expect(PRESCHOOL_SONGS.some((s) => s.id === "bahay-kubo")).toBe(true);
+    expect(PRESCHOOL_SONGS.some((s) => s.id === "leron-leron-sinta")).toBe(true);
 
     for (const song of PRESCHOOL_SONGS) {
       expect(song.title.length).toBeGreaterThan(3);

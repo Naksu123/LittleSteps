@@ -1,13 +1,17 @@
 "use client";
 
 import React, {
-  createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
 } from "react";
+import {
+  AuthContext,
+  useOptionalAuth,
+  type AuthContextValue,
+} from "@/hooks/authContext";
 import {
   ApiError,
   authApi,
@@ -16,32 +20,14 @@ import {
   onAuthExpired,
   setStoredTokens,
 } from "@/services/api";
-import type { Child, MeResponse, UserSummary } from "@/types";
+import type {
+  Child,
+  MeResponse,
+  ParentPreferences,
+  UserSummary,
+} from "@/types";
 
-interface AuthContextValue {
-  user: UserSummary | null;
-  childrenList: Child[];
-  activeChildId: string | null;
-  setActiveChildId: (childId: string | null) => void;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<UserSummary>;
-  staffLogin: (
-    email: string,
-    password: string,
-    accessCode: string
-  ) => Promise<UserSummary>;
-  register: (payload: {
-    email: string;
-    password: string;
-    full_name: string;
-    privacy_consent_accepted: boolean;
-  }) => Promise<UserSummary>;
-  logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export { useOptionalAuth };
 
 const ACTIVE_CHILD_KEY = "littlesteps_active_child_id";
 
@@ -49,6 +35,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSummary | null>(null);
   const [childrenList, setChildrenList] = useState<Child[]>([]);
   const [activeChildId, setActiveChildIdState] = useState<string | null>(null);
+  const [parentPreferences, setParentPreferences] =
+    useState<ParentPreferences | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const setActiveChildId = useCallback((childId: string | null) => {
@@ -66,6 +54,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (me: MeResponse) => {
       setUser(me.user);
       setChildrenList(me.children);
+      if (me.parent_preferences !== undefined) {
+        setParentPreferences(me.parent_preferences ?? null);
+      }
 
       const savedId =
         typeof window !== "undefined"
@@ -208,6 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearStoredTokens();
       setUser(null);
       setChildrenList([]);
+      setParentPreferences(null);
       setActiveChildId(null);
     }
   }, [setActiveChildId]);
@@ -217,6 +209,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       childrenList,
       activeChildId,
+      parentPreferences,
+      setParentPreferences,
       setActiveChildId,
       isLoading,
       isAuthenticated: Boolean(user),
@@ -230,6 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       childrenList,
       activeChildId,
+      parentPreferences,
       setActiveChildId,
       isLoading,
       login,

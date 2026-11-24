@@ -16,14 +16,18 @@ import {
   Clock,
   FileText,
   Flame,
+  HeartHandshake,
   Home,
+  Music,
   Pencil,
   Plus,
   Settings,
+  Share2,
   Sparkles,
   Star,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { normalizeLanguage, THEME_FIL, tText } from "@/lib/i18n";
 import {
   AGE_GROUP_VALUES,
   clampPreschoolAge,
@@ -43,6 +47,7 @@ import {
 import { ApiError, childrenApi, parentApi, prefetchPortalData } from "@/services/api";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PortalShell } from "@/components/layout/PortalShell";
+import { MilestoneCardModal } from "@/components/parent/MilestoneCardModal";
 import { Alert } from "@/components/ui/alert";
 import { ChildAvatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -75,13 +80,23 @@ const WeeklyMinutesChart = dynamic(
 
 function ParentPortalContent() {
   const router = useRouter();
-  const { activeChildId, setActiveChildId, refreshUser, isLoading: authLoading, isAuthenticated } = useAuth();
+  const {
+    activeChildId,
+    setActiveChildId,
+    parentPreferences,
+    refreshUser,
+    isLoading: authLoading,
+    isAuthenticated,
+  } = useAuth();
+  const lang = normalizeLanguage(parentPreferences?.preferred_language);
   const [dashboard, setDashboard] = useState<ParentDashboardData | null>(null);
   const [homeThemes, setHomeThemes] = useState<ParentHomeLearningTheme[]>([]);
   const [notifList, setNotifList] = useState<NotificationList | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
+  const [caregiverMode, setCaregiverMode] = useState(false);
+  const [milestoneOpen, setMilestoneOpen] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -586,19 +601,47 @@ function ParentPortalContent() {
           )}
         </div>
 
-        {activeItem && (
-          <Button
-            variant="kids"
-            size="md"
-            onClick={() => launchKidsMode(activeItem.child.id)}
-            className="w-full sm:w-auto"
-          >
-            <Baby className="h-5 w-5 shrink-0" />
-            <span className="truncate">
-              Launch Kids Mode for {activeItem.child.display_name}
-            </span>
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {activeItem && (
+            <>
+              <Button
+                type="button"
+                variant={caregiverMode ? "secondary" : "outline"}
+                size="md"
+                onClick={() => setCaregiverMode((v) => !v)}
+              >
+                <HeartHandshake className="h-4 w-4 shrink-0" />
+                {caregiverMode
+                  ? tText(lang, "Full Parent View", "Buong Ulat")
+                  : tText(lang, "Caregiver (Lolo/Lola) Mode", "Gabay kay Lolo/Lola")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                onClick={() => setMilestoneOpen(true)}
+              >
+                <Share2 className="h-4 w-4 shrink-0" />
+                {tText(lang, "Share Milestone Card", "Ibahagi ang Card")}
+              </Button>
+              <Button
+                variant="kids"
+                size="md"
+                onClick={() => launchKidsMode(activeItem.child.id)}
+                className="w-full sm:w-auto"
+              >
+                <Baby className="h-5 w-5 shrink-0" />
+                <span className="truncate">
+                  {tText(
+                    lang,
+                    `Launch Kids Mode for ${activeItem.child.display_name}`,
+                    `Buksan ang Kids Mode (${activeItem.child.display_name})`
+                  )}
+                </span>
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -623,8 +666,136 @@ function ParentPortalContent() {
             </Button>
           </CardContent>
         </Card>
+      ) : caregiverMode ? (
+        <Card className="border-2 border-[#78C8F5] bg-gradient-to-br from-[#DCF2FD]/50 via-white to-[#FFF5CF]/60">
+          <CardHeader>
+            <CardTitle className="font-display text-2xl">
+              {tText(
+                lang,
+                `Quick Caregiver Guide for ${activeItem.child.display_name}`,
+                `Mabilis na Gabay para kay ${activeItem.child.display_name}`
+              )}
+            </CardTitle>
+            <CardDescription>
+              {tText(
+                lang,
+                "Simple big buttons for Nanay, Tatay, Lolo, Lola, or Ate — no charts needed!",
+                "Madaling pindutin para kina Nanay, Tatay, Lolo, Lola, o Ate!"
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Button
+              variant="kids"
+              size="kid"
+              className="h-auto py-5 flex-col gap-2"
+              onClick={() => launchKidsMode(activeItem.child.id)}
+            >
+              <Baby className="h-7 w-7" />
+              <span>
+                {tText(
+                  lang,
+                  "Start 10-Min Lesson & Games",
+                  "Simulan ang 10-Min Aralin"
+                )}
+              </span>
+            </Button>
+
+            <Button
+              variant="secondary"
+              size="kid"
+              className="h-auto py-5 flex-col gap-2"
+              onClick={() => {
+                setActiveChildId(activeItem.child.id);
+                router.push("/kids?tab=stories");
+              }}
+            >
+              <Music className="h-7 w-7" />
+              <span>
+                {tText(
+                  lang,
+                  "Explore Weekly Kuwento & Rhymes",
+                  "Tingnan ang Kuwento at Awitin"
+                )}
+              </span>
+            </Button>
+
+            {featuredActivity ? (
+              <Button
+                variant="outline"
+                size="kid"
+                className="h-auto py-5 flex-col gap-2 bg-white"
+                disabled={togglingId === featuredActivity.id}
+                onClick={() =>
+                  handleToggleHomeActivity(
+                    featuredActivity.id,
+                    !featuredActivity.completed
+                  )
+                }
+              >
+                <Home className="h-7 w-7 text-[#8E3022]" />
+                <span className="text-center leading-snug">
+                  {featuredActivity.completed
+                    ? tText(lang, "Offline Activity Done! ✓", "Tapos na! ✓")
+                    : `${tText(lang, "Tonight's ₱0 Game:", "Larong Bahay:")} ${featuredActivity.title}`}
+                </span>
+              </Button>
+            ) : (
+              <Link href="/parent/home-learning" className="block">
+                <Button variant="outline" size="kid" className="w-full h-full">
+                  {tText(lang, "Open Home Ideas", "Buksan ang Home Guide")}
+                </Button>
+              </Link>
+            )}
+          </CardContent>
+        </Card>
       ) : (
         <>
+          {/* 5-Second Plain-Language Bilingual Digest */}
+          {activeItem.digest && (
+            <Card className="border-2 border-[#9BE7C4] bg-gradient-to-r from-[#DDF8EC]/60 via-[#FFF9F0] to-[#DCF2FD]/50">
+              <CardContent className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="mint">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      {tText(lang, "Weekly Digest", "Lingguhang Balita")}
+                    </Badge>
+                    <Badge variant="sunshine">
+                      {activeItem.days_active_this_week ?? 0}{" "}
+                      {tText(lang, "days active this week", "araw na nag-aral")}
+                    </Badge>
+                  </div>
+                  <p className="font-display text-base sm:text-lg font-bold text-[#24334D]">
+                    {lang === "fil"
+                      ? activeItem.digest.strength_fil
+                      : activeItem.digest.strength_en}
+                  </p>
+                  <p className="text-xs sm:text-sm font-semibold text-[#24334D]/80">
+                    {lang === "fil"
+                      ? activeItem.digest.next_step_fil
+                      : activeItem.digest.next_step_en}
+                  </p>
+                  {lang === "bilingual" && (
+                    <p className="text-xs font-semibold text-[#175B82]">
+                      {activeItem.digest.strength_fil}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMilestoneOpen(true)}
+                  className="shrink-0 bg-white"
+                >
+                  <Share2 className="h-4 w-4" />
+                  {tText(lang, "Create Keepsake Card", "Gumawa ng Card")}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Summary Metrics */}
           <div className="grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <Card>
@@ -750,7 +921,10 @@ function ParentPortalContent() {
                     <Home className="h-3.5 w-3.5" />
                     Home Learning Hub · Week {featuredHome.theme.week_number}
                   </Badge>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="sunshine">
+                      ₱0 · Household Items
+                    </Badge>
                     <Badge variant="mint">
                       {featuredHome.parent_guide?.estimated_duration_mins ?? 15}{" "}
                       mins · Screen-Free
@@ -758,6 +932,9 @@ function ParentPortalContent() {
                     <Link href="/parent/home-learning">
                       <Button variant="outline" size="sm">
                         Explore All 12 Weeks
+                        {featuredHome.theme.slug && THEME_FIL[featuredHome.theme.slug] && lang === "fil"
+                          ? ` (${THEME_FIL[featuredHome.theme.slug].title})`
+                          : ""}
                       </Button>
                     </Link>
                   </div>
@@ -1224,6 +1401,15 @@ function ParentPortalContent() {
           </div>
         </form>
       </Dialog>
+
+      <MilestoneCardModal
+        open={milestoneOpen}
+        onClose={() => setMilestoneOpen(false)}
+        child={activeItem?.child || null}
+        lessonsCompleted={activeItem?.lessons_completed || 0}
+        daysActiveThisWeek={activeItem?.days_active_this_week ?? 0}
+        currentTheme={dashboard?.current_theme}
+      />
     </PortalShell>
   );
 }

@@ -20,6 +20,7 @@ import { MemoryGame } from "@/components/games/MemoryGame";
 import { PuzzleGame } from "@/components/games/PuzzleGame";
 import { RewardCelebration } from "@/components/games/RewardCelebration";
 import { SortGame } from "@/components/games/SortGame";
+import { TracingGame } from "@/components/games/TracingGame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,6 +34,7 @@ import type {
   ProgressResult,
   PuzzleConfig,
   SortConfig,
+  TraceConfig,
 } from "@/types";
 
 interface GamePlayerProps {
@@ -135,7 +137,9 @@ export function GamePlayer({
                     ? `${adaptedCfg.items.length} Items`
                     : adaptedCfg.engine === "memory"
                       ? `${adaptedCfg.pairs.length} Pairs`
-                      : `${adaptedCfg.pictures.length} Puzzles`}{" "}
+                      : adaptedCfg.engine === "trace"
+                        ? `${adaptedCfg.prompts.length} Traces`
+                        : `${adaptedCfg.pictures.length} Puzzles`}{" "}
                 • New every week!
               </Badge>
             )}
@@ -281,8 +285,17 @@ export function GamePlayer({
           onComplete={handleGameComplete}
         />
       )}
+      {adaptedCfg?.engine === "trace" && (
+        <TracingGame
+          key={`${difficulty}-${runKey}`}
+          config={adaptedCfg as TraceConfig}
+          onComplete={handleGameComplete}
+        />
+      )}
       {(!adaptedCfg ||
-        !["choice", "sort", "memory", "puzzle"].includes(adaptedCfg.engine)) && (
+        !["choice", "sort", "memory", "puzzle", "trace"].includes(
+          adaptedCfg.engine
+        )) && (
         <Card>
           <CardContent className="p-8 text-center space-y-3">
             <p className="font-display text-xl font-bold">

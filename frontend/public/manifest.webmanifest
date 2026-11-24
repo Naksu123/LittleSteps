@@ -1,0 +1,19 @@
+{
+  "name": "LittleSteps: Cloud Pre-School LMS",
+  "short_name": "LittleSteps",
+  "description": "Small Steps, Big Discoveries — Child-safe bilingual Pre-School learning for Filipino families.",
+  "start_url": "/kids",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFF9F0",
+  "theme_color": "#78C8F5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/images/littlesteps-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

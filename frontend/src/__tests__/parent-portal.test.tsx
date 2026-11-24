@@ -1,4 +1,12 @@
 import { render, screen } from "@testing-library/react";
+import { adaptGameConfig } from "@/lib/gameDifficulty";
+import { GARDEN_CROPS, THEME_FIL, tText } from "@/lib/i18n";
+import {
+  addScreenSecondsUsed,
+  getScreenBonusSeconds,
+  getScreenSecondsUsed,
+  grantScreenTimeBonus,
+} from "@/lib/screenTime";
 import {
   addChildSchema,
   learningGoalSchema,
@@ -58,6 +66,14 @@ describe("Parent Portal validation schemas", () => {
     expect(
       parentSettingsSchema.safeParse({
         preferred_language: "fil",
+        daily_screen_limit_mins: 30,
+        notifications_enabled: true,
+      }).success
+    ).toBe(true);
+
+    expect(
+      parentSettingsSchema.safeParse({
+        preferred_language: "bilingual",
         daily_screen_limit_mins: 30,
         notifications_enabled: true,
       }).success
@@ -147,6 +163,38 @@ describe("Parent Portal validation schemas", () => {
     } finally {
       clearStoredTokens();
       global.fetch = originalFetch;
+    }
+  });
+
+  it("supports Filipino/bilingual i18n, Bahay Kubo garden crops, screen-time tracking, and tracing difficulty scaling", () => {
+    expect(tText("en", "Hello", "Kumusta")).toBe("Hello");
+    expect(tText("fil", "Hello", "Kumusta")).toBe("Kumusta");
+    expect(tText("bilingual", "Hello", "Kumusta")).toBe("Hello (Kumusta)");
+    expect(Object.keys(THEME_FIL)).toHaveLength(12);
+    expect(GARDEN_CROPS).toHaveLength(6);
+
+    window.localStorage.clear();
+    expect(getScreenSecondsUsed("child-test")).toBe(0);
+    expect(addScreenSecondsUsed("child-test", 45)).toBe(45);
+    expect(getScreenSecondsUsed("child-test")).toBe(45);
+    expect(grantScreenTimeBonus("child-test", 10)).toBe(600);
+    expect(getScreenBonusSeconds("child-test")).toBe(600);
+
+    const adaptedNormal = adaptGameConfig(
+      {
+        engine: "trace",
+        prompts: [
+          { key: "p1", label: "One", points: [[10, 10], [50, 50]] },
+          { key: "p2", label: "Two", points: [[10, 10], [50, 50]] },
+          { key: "p3", label: "Three", points: [[10, 10], [50, 50]] },
+          { key: "p4", label: "Four", points: [[10, 10], [50, 50]] },
+        ],
+      },
+      "normal"
+    );
+    expect(adaptedNormal.engine).toBe("trace");
+    if (adaptedNormal.engine === "trace") {
+      expect(adaptedNormal.prompts).toHaveLength(2);
     }
   });
 });

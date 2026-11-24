@@ -182,11 +182,18 @@ function WeeklyReportContent() {
                 </Badge>
               </div>
 
-              <div className="rounded-2xl bg-[#FFF5CF]/65 p-4 text-sm font-semibold text-[#24334D]">
-                <span className="inline-flex items-center gap-1.5 text-[#785700] font-bold mr-1">
-                  <Sparkles className="h-4 w-4" /> Weekly Highlight:
-                </span>
-                {report.encouraging_summary}
+              <div className="rounded-2xl bg-[#FFF5CF]/65 p-4 text-sm font-semibold text-[#24334D] space-y-1">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 text-[#785700] font-bold mr-1">
+                    <Sparkles className="h-4 w-4" /> Weekly Highlight:
+                  </span>
+                  {report.encouraging_summary}
+                </div>
+                {report.encouraging_summary_fil && (
+                  <p className="text-xs font-semibold text-[#175B82]">
+                    {report.encouraging_summary_fil}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

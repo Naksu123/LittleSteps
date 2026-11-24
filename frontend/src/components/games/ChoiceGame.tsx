@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, RotateCcw, Volume2 } from "lucide-react";
+import { useOptionalAuth } from "@/hooks/authContext";
 import {
   getAnimalSoundMeta,
   playAnimalSound,
@@ -16,6 +17,7 @@ import {
   pick,
   scoreFromFirstTries,
 } from "@/lib/gameScoring";
+import { normalizeLanguage, tText } from "@/lib/i18n";
 import { playChime } from "@/lib/sound";
 import { speak, stopSpeaking } from "@/lib/speech";
 import { cn } from "@/lib/utils";
@@ -42,6 +44,8 @@ export function ChoiceGame({
   onComplete,
   shuffle = true,
 }: ChoiceGameProps) {
+  const auth = useOptionalAuth();
+  const lang = normalizeLanguage(auth?.parentPreferences?.preferred_language);
   const rounds = config.rounds;
   const [roundIdx, setRoundIdx] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -173,8 +177,11 @@ export function ChoiceGame({
       triggerRoundAnimalSound(true);
       return;
     }
-    const text = currentRound.speak || currentRound.prompt;
-    speak(text);
+    const text =
+      lang === "fil" && currentRound.speak_fil
+        ? currentRound.speak_fil
+        : currentRound.speak || currentRound.prompt;
+    speak(text, { lang });
   }
 
   function handlePlayAnimalSoundOnly() {
@@ -334,7 +341,7 @@ export function ChoiceGame({
       {/* Prompt + Audio */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 text-center sm:text-left">
         <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-[#24334D]">
-          {currentRound.prompt}
+          {tText(lang, currentRound.prompt, currentRound.prompt_fil)}
         </h2>
         <Button
           type="button"
@@ -493,10 +500,20 @@ export function ChoiceGame({
             >
               {choice.hex ? (
                 <span
-                  className="h-16 w-16 sm:h-20 sm:w-20 rounded-full border-4 border-white shadow-md"
+                  className="h-16 w-16 sm:h-20 sm:w-20 rounded-full border-4 border-white shadow-md flex items-center justify-center text-white font-display font-bold text-xl drop-shadow-xs"
                   style={{ backgroundColor: choice.hex }}
                   aria-hidden="true"
-                />
+                >
+                  {choice.key === "red"
+                    ? "●"
+                    : choice.key === "blue"
+                      ? "▲"
+                      : choice.key === "yellow"
+                        ? "★"
+                        : choice.key === "green" || choice.key === "mint"
+                          ? "◆"
+                          : "◉"}
+                </span>
               ) : choice.emoji ? (
                 <span className="text-4xl sm:text-5xl select-none">{choice.emoji}</span>
               ) : null}

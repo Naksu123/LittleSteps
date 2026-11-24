@@ -37,6 +37,8 @@ export interface PreschoolSong {
   id: string;
   title: string;
   emoji: string;
+  culture?: "global" | "filipino";
+  lyrics?: string;
   bpm: number;
   notes: readonly MusicNote[];
 }
@@ -45,6 +47,8 @@ export interface PreschoolSongSummary {
   id: string;
   title: string;
   emoji: string;
+  culture?: "global" | "filipino";
+  lyrics?: string;
 }
 
 /**
@@ -441,6 +445,125 @@ export const PRESCHOOL_SONGS: readonly PreschoolSong[] = [
       { note: "C5", beats: 3, bass: "C3" },
     ],
   },
+  {
+    id: "bahay-kubo",
+    title: "Bahay Kubo",
+    emoji: "🏡",
+    culture: "filipino",
+    lyrics: "Bahay kubo, kahit munti, ang halaman doon ay sari-sari...",
+    bpm: 108,
+    notes: [
+      { note: "G4", beats: 1, bass: "C3" },
+      { note: "C5", beats: 2, bass: "C3" },
+      { note: "D5", beats: 1 },
+      { note: "E5", beats: 2, bass: "C3" },
+      { note: "C5", beats: 1 },
+      { note: "E5", beats: 1 },
+      { note: "F5", beats: 2, bass: "F3" },
+      { note: "D5", beats: 1 },
+      { note: "B4", beats: 2, bass: "G3" },
+      { note: "G4", beats: 1 },
+      { note: "C5", beats: 2, bass: "C3" },
+      { note: "A4", beats: 1, bass: "F3" },
+      { note: "G4", beats: 2, bass: "C3" },
+      { note: "E5", beats: 1 },
+      { note: "D5", beats: 2, bass: "G3" },
+      { note: "C5", beats: 3, bass: "C3" },
+    ],
+  },
+  {
+    id: "leron-leron-sinta",
+    title: "Leron, Leron Sinta",
+    emoji: "🥭",
+    culture: "filipino",
+    lyrics: "Leron, Leron sinta, buko ng papaya, dala-dala'y buslo...",
+    bpm: 112,
+    notes: [
+      { note: "G4", beats: 0.5, bass: "C3" },
+      { note: "E5", beats: 1, bass: "C3" },
+      { note: "D5", beats: 0.5 },
+      { note: "C5", beats: 1, bass: "C3" },
+      { note: "E5", beats: 1 },
+      { note: "G5", beats: 1, bass: "C3" },
+      { note: "F5", beats: 1, bass: "F3" },
+      { note: "D5", beats: 2, bass: "G3" },
+      { note: "F5", beats: 1, bass: "G3" },
+      { note: "E5", beats: 1, bass: "C3" },
+      { note: "D5", beats: 1, bass: "G3" },
+      { note: "C5", beats: 2, bass: "C3" },
+    ],
+  },
+  {
+    id: "sampung-mga-daliri",
+    title: "Sampung Mga Daliri",
+    emoji: "🖐️",
+    culture: "filipino",
+    lyrics: "Sampung mga daliri, kamay at paa, dalawang tainga, dalawang mata...",
+    bpm: 108,
+    notes: [
+      { note: "C5", beats: 0.5, bass: "C3" },
+      { note: "C5", beats: 0.5 },
+      { note: "D5", beats: 0.5 },
+      { note: "E5", beats: 0.5, bass: "C3" },
+      { note: "G5", beats: 1, bass: "C3" },
+      { note: "E5", beats: 1 },
+      { note: "F5", beats: 0.5, bass: "F3" },
+      { note: "F5", beats: 0.5 },
+      { note: "E5", beats: 0.5 },
+      { note: "D5", beats: 0.5, bass: "G3" },
+      { note: "E5", beats: 1, bass: "C3" },
+      { note: "C5", beats: 2, bass: "C3" },
+    ],
+  },
+  {
+    id: "ako-ay-may-lobo",
+    title: "Ako ay May Lobo",
+    emoji: "🎈",
+    culture: "filipino",
+    lyrics: "Ako ay may lobo, lumipad sa langit, di ko na nakita...",
+    bpm: 100,
+    notes: [
+      { note: "G4", beats: 0.5, bass: "C3" },
+      { note: "C5", beats: 1, bass: "C3" },
+      { note: "C5", beats: 0.5 },
+      { note: "D5", beats: 1, bass: "G3" },
+      { note: "E5", beats: 1, bass: "C3" },
+      { note: "E5", beats: 1 },
+      { note: "F5", beats: 1, bass: "F3" },
+      { note: "E5", beats: 1, bass: "C3" },
+      { note: "D5", beats: 1, bass: "G3" },
+      { note: "C5", beats: 1, bass: "C3" },
+      { note: "G4", beats: 0.5, bass: "C3" },
+      { note: "C5", beats: 1 },
+      { note: "E5", beats: 1, bass: "C3" },
+      { note: "D5", beats: 1, bass: "G3" },
+      { note: "C5", beats: 2, bass: "C3" },
+    ],
+  },
+  {
+    id: "tong-tong-tong",
+    title: "Tong, Tong, Tong Pakitong-Kitong",
+    emoji: "🦀",
+    culture: "filipino",
+    lyrics: "Tong, tong, tong, tong pakitong-kitong, alimango sa dagat...",
+    bpm: 112,
+    notes: [
+      { note: "C5", beats: 1, bass: "C3" },
+      { note: "C5", beats: 1 },
+      { note: "C5", beats: 1, bass: "C3" },
+      { note: "G5", beats: 1 },
+      { note: "E5", beats: 0.5, bass: "C3" },
+      { note: "E5", beats: 0.5 },
+      { note: "D5", beats: 0.5, bass: "G3" },
+      { note: "D5", beats: 0.5 },
+      { note: "C5", beats: 1, bass: "C3" },
+      { note: "E5", beats: 0.5, bass: "C3" },
+      { note: "G5", beats: 0.5 },
+      { note: "E5", beats: 1, bass: "C3" },
+      { note: "D5", beats: 1, bass: "G3" },
+      { note: "C5", beats: 2, bass: "C3" },
+    ],
+  },
 ];
 
 /**
@@ -471,5 +594,7 @@ export function toSongSummary(song: PreschoolSong): PreschoolSongSummary {
     id: song.id,
     title: song.title,
     emoji: song.emoji,
+    culture: song.culture,
+    lyrics: song.lyrics,
   };
 }

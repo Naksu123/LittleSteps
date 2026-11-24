@@ -4,7 +4,17 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Palette, Pause, Play, Plus, ShieldCheck, Target, Trash2 } from "lucide-react";
+import {
+  Download,
+  KeyRound,
+  Palette,
+  Pause,
+  Play,
+  Plus,
+  ShieldCheck,
+  Target,
+  Trash2,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   learningGoalSchema,
@@ -12,7 +22,7 @@ import {
   type LearningGoalFormValues,
   type ParentSettingsFormValues,
 } from "@/lib/validation";
-import { ApiError, parentApi } from "@/services/api";
+import { ApiError, childrenApi, parentApi } from "@/services/api";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Alert } from "@/components/ui/alert";
@@ -26,12 +36,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { LearningGoal } from "@/types";
 
 function ParentSettingsContent() {
-  const { childrenList, activeChildId, setActiveChildId, refreshUser } = useAuth();
+  const {
+    childrenList,
+    activeChildId,
+    setActiveChildId,
+    setParentPreferences,
+    refreshUser,
+  } = useAuth();
   const activeChild =
     childrenList.find((c) => c.id === activeChildId) || childrenList[0] || null;
 
@@ -39,6 +56,12 @@ function ParentSettingsContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [hasParentPin, setHasParentPin] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [savingPin, setSavingPin] = useState(false);
+  const [exportingChild, setExportingChild] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingChild, setDeletingChild] = useState(false);
 
   const {
     register: regGoal,
@@ -78,9 +101,13 @@ function ParentSettingsContent() {
           parentApi.settings(),
         ]);
         setGoals(goalsData);
+        setHasParentPin(Boolean(settingsData.has_parent_pin));
         resetSettings({
           preferred_language:
-            settingsData.preferred_language === "fil" ? "fil" : "en",
+            settingsData.preferred_language === "fil" ||
+            settingsData.preferred_language === "bilingual"
+              ? settingsData.preferred_language
+              : "en",
           daily_screen_limit_mins: settingsData.daily_screen_limit_mins,
           notifications_enabled: settingsData.notifications_enabled,
         });
@@ -150,12 +177,113 @@ function ParentSettingsContent() {
     setError(null);
     setToast(null);
     try {
-      await parentApi.updateSettings(values);
-      setToast("Family screen time and notification preferences saved!");
+      const updated = await parentApi.updateSettings(values);
+      setHasParentPin(Boolean(updated.has_parent_pin));
+      setParentPreferences({
+        preferred_language: updated.preferred_language,
+        daily_screen_limit_mins: updated.daily_screen_limit_mins,
+        notifications_enabled: updated.notifications_enabled,
+        has_parent_pin: Boolean(updated.has_parent_pin),
+      });
+      setToast("Family screen time, language, and notification preferences saved!");
+      void refreshUser();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not update settings."
       );
+    }
+  }
+
+  async function handleSavePin(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setToast(null);
+    if (!/^\d{4}$/.test(pinInput.trim())) {
+      setError("Please enter a valid 4-digit numeric PIN.");
+      return;
+    }
+    setSavingPin(true);
+    try {
+      const updated = await parentApi.updateSettings({
+        parent_pin: pinInput.trim(),
+      });
+      setHasParentPin(Boolean(updated.has_parent_pin));
+      setParentPreferences({
+        preferred_language: updated.preferred_language,
+        daily_screen_limit_mins: updated.daily_screen_limit_mins,
+        notifications_enabled: updated.notifications_enabled,
+        has_parent_pin: Boolean(updated.has_parent_pin),
+      });
+      setPinInput("");
+      setToast("4-digit Parent PIN enabled! Kids Mode now asks for your PIN.");
+      void refreshUser();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not save PIN.");
+    } finally {
+      setSavingPin(false);
+    }
+  }
+
+  async function handleClearPin() {
+    setError(null);
+    setToast(null);
+    setSavingPin(true);
+    try {
+      const updated = await parentApi.updateSettings({ clear_parent_pin: true });
+      setHasParentPin(false);
+      setParentPreferences({
+        preferred_language: updated.preferred_language,
+        daily_screen_limit_mins: updated.daily_screen_limit_mins,
+        notifications_enabled: updated.notifications_enabled,
+        has_parent_pin: false,
+      });
+      setToast("Parent PIN removed. Grown-Up Check uses math questions again.");
+      void refreshUser();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not clear PIN.");
+    } finally {
+      setSavingPin(false);
+    }
+  }
+
+  async function handleExportChild() {
+    if (!activeChild) return;
+    setError(null);
+    setExportingChild(true);
+    try {
+      const data = await childrenApi.exportData(activeChild.id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `littlesteps-${activeChild.display_name.toLowerCase()}-progress.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setToast(`${activeChild.display_name}'s learning summary exported.`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Export failed.");
+    } finally {
+      setExportingChild(false);
+    }
+  }
+
+  async function handleDeleteChild() {
+    if (!activeChild) return;
+    setError(null);
+    setDeletingChild(true);
+    try {
+      await childrenApi.remove(activeChild.id);
+      setDeleteDialogOpen(false);
+      setToast(`${activeChild.display_name}'s profile and artworks were deleted.`);
+      await refreshUser();
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Could not delete profile."
+      );
+    } finally {
+      setDeletingChild(false);
     }
   }
 
@@ -376,6 +504,7 @@ function ParentSettingsContent() {
                     >
                       <option value="en">English</option>
                       <option value="fil">Filipino / Tagalog</option>
+                      <option value="bilingual">Bilingual (English + Filipino)</option>
                     </select>
                   </div>
 
@@ -408,7 +537,7 @@ function ParentSettingsContent() {
                   Child Artworks & Gallery Controls
                 </CardTitle>
                 <CardDescription>
-                  Review or remove saved drawings created in Kids Art Studio.
+                  Review, curate, or remove saved drawings created in Kids Art Studio.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -419,9 +548,113 @@ function ParentSettingsContent() {
                 </Link>
               </CardContent>
             </Card>
+
+            <Card className="border-2 border-[#78C8F5]/45 bg-[#DCF2FD]/25">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <KeyRound className="h-5 w-5 text-[#175B82]" />
+                  Parent PIN Lock {hasParentPin ? "(Enabled)" : "(Optional)"}
+                </CardTitle>
+                <CardDescription>
+                  Use a 4-digit PIN instead of math questions to protect Parent & Admin tools on shared family phones.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <form onSubmit={handleSavePin} className="flex items-center gap-2">
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="4-digit PIN"
+                    value={pinInput}
+                    onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
+                    aria-label="4-digit Parent PIN"
+                  />
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    size="md"
+                    disabled={savingPin}
+                    className="shrink-0"
+                  >
+                    {hasParentPin ? "Update PIN" : "Set PIN"}
+                  </Button>
+                </form>
+                {hasParentPin && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={savingPin}
+                    onClick={handleClearPin}
+                  >
+                    Remove PIN (use Math Check)
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+
+            {activeChild && (
+              <Card className="border border-[#24334D]/15">
+                <CardHeader>
+                  <CardTitle className="text-lg">
+                    Data Privacy Controls (RA 10173)
+                  </CardTitle>
+                  <CardDescription>
+                    Export or permanently erase {activeChild.display_name}&apos;s profile, progress, and artwork files.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="md"
+                    disabled={exportingChild}
+                    onClick={handleExportChild}
+                  >
+                    <Download className="h-4 w-4" />
+                    {exportingChild ? "Exporting..." : "Export Child Data"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="coral"
+                    size="md"
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete {activeChild.display_name}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       )}
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        title={`Delete ${activeChild?.display_name ?? "Child"} Profile?`}
+        description="This permanently erases learning progress, rewards, and saved artworks from LittleSteps."
+      >
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setDeleteDialogOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="coral"
+            disabled={deletingChild}
+            onClick={handleDeleteChild}
+          >
+            {deletingChild ? "Deleting..." : "Confirm Permanent Delete"}
+          </Button>
+        </div>
+      </Dialog>
     </PortalShell>
   );
 }

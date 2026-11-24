@@ -513,20 +513,32 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
                 db.scalars(select(HomeActivity).where(HomeActivity.theme_id == theme.id)).all()
             )
 
-    # 7. Lessons (6 lessons covering all 6 subjects) + Activities
+    # 7. Lessons (12 lessons covering all 12 weekly themes & all 6 subjects) + Activities
     lessons_data = [
-        ("alphabet-letter-b", "Find the Letter B", "alphabet-language", 2, "Meet Benny the Bear and find objects that start with the /b/ sound!", 10,
-         "Hello explorer! Let's tap every friendly picture that starts with the B sound, like ball and bear."),
-        ("counting-fruits-1-10", "Counting Sweet Fruits 1–10", "mathematics", 3, "Count shiny apples, bananas, and oranges alongside Pip the Owl.", 10,
+        ("alphabet-letter-b", "Find the Letter B", "alphabet-language", 2, "Meet letter B for Bola, Bahay, and Banana with bouncy phonics sounds!", 10,
+         "Hello explorer! Let's tap every friendly picture that starts with the B sound, like bola and bahay."),
+        ("counting-fruits-1-10", "Counting Sweet Fruits 1–10", "mathematics", 3, "Count shiny bananas, mangoes, and oranges alongside Pip the Owl.", 10,
          "Let's count the colorful fruits together! Tap each fruit one by one."),
-        ("animal-habitats-explorer", "Where Animals Live", "science-discovery", 5, "Peek inside cozy nests, sunny ponds, and leafy treetops.", 12,
+        ("shapes-in-our-home", "Shapes in Our Home", "mathematics", 4, "Discover Bilog (Circles), Parisukat (Squares), and Tatsulok (Triangles) around home!", 10,
+         "Let's spot friendly shapes hiding in plates, windows, and Bahay Kubo roofs!"),
+        ("animal-habitats-explorer", "Where Animals Live", "science-discovery", 5, "Peek inside cozy nests, cool ponds, and sunny treetops.", 12,
          "Every animal has a special cozy home. Let's match each animal friend to where it lives!"),
+        ("sunny-morning-routine", "Happy Morning Helper", "life-skills", 6, "Brush teeth, wash hands, and pick healthy fruits and water.", 8,
+         "Let's follow our happy morning steps together and earn a shiny star!"),
+        ("five-senses-discovery", "My Five Senses Explorer", "science-discovery", 7, "Use eyes, ears, nose, hands, and tongue to explore everyday treasures.", 10,
+         "We see, hear, smell, touch, and taste to discover the wonderful world around us!"),
         ("feelings-rainbow", "My Feelings Rainbow", "social-emotional", 8, "Discover how happy, calm, excited, and gentle feelings look and feel.", 10,
          "All feelings are welcome here! Let's learn friendly ways to share how we feel."),
+        ("bahay-kubo-garden", "Growing Seeds in Bahay Kubo", "science-discovery", 9, "Watch tiny mung bean seeds drink water and grow tall in sunlight!", 10,
+         "Tiny seeds need water, soil, and sunlight to sprout into healthy vegetables!"),
+        ("barangay-community-helpers", "Helpers in Our Barangay", "social-emotional", 10, "Meet teachers, doctors, and farmers, and practice saying Salamat Po!", 10,
+         "Let's thank the friendly helpers in our barangay and learn polite magic words!"),
+        ("sunny-and-rainy-days", "Sunny & Rainy Day Explorer", "science-discovery", 11, "Prepare for Tag-init sunny mornings and Tag-ulan rainy afternoons safely.", 10,
+         "Whether the sun shines or rain pours, let's pick what keeps us cozy, hydrated, and dry!"),
         ("primary-colors-studio", "Splash & Mix Primary Colors", "arts-creativity", 1, "Explore red, yellow, and blue paint splashes to brighten our studio.", 12,
          "Tap the red, yellow, and blue paint jars to create cheerful art!"),
-        ("sunny-morning-routine", "Happy Morning Helper", "life-skills", 6, "Brush teeth, wash hands, and pick healthy breakfast foods.", 8,
-         "Let's follow our happy morning steps together and earn a shiny star!"),
+        ("kindness-and-bayanihan", "Kindness & Bayanihan", "social-emotional", 12, "Practice sharing, taking turns, and helping together as a joyful team!", 10,
+         "When we share and help each other, everyone feels happy—that is Bayanihan!"),
     ]
     lesson_map: dict[str, Lesson] = {}
     for slug, title, subj_slug, week_num, summary, mins, narration in lessons_data:
@@ -603,6 +615,8 @@ def seed_database(db: Session, sync_existing_users: bool = False) -> dict[str, i
         ("weather-dress-up", "Weather & Outfit Match", "weather_dress_up", "science-discovery", 11, "Look at today's sky and pick what helps us stay cozy, dry, or cool!"),
         ("ocean-friends-memory", "Ocean Friends Memory", "ocean_friends_memory", "science-discovery", 5, "Flip ocean bubbles two at a time to match friendly sea creatures."),
         ("space-explorer-puzzle", "Space Explorer Puzzle", "space_explorer_puzzle", "arts-creativity", 7, "Snap four big space puzzle pieces together to blast off!"),
+        ("prewriting-strokes", "Pre-Writing Lines & Shapes Trace", "prewriting_strokes", "arts-creativity", 4, "Follow the glowing star path with your finger to practice lines and shapes!"),
+        ("letter-number-tracing", "Abakada & Number Tracing", "letter_number_tracing", "alphabet-language", 2, "Trace friendly letters and numbers step by step at your own cozy pace!"),
     ]
     for slug, title, gtype, subj_slug, week_num, instructions in games_data:
         game = db.scalar(select(Game).where(Game.slug == slug))

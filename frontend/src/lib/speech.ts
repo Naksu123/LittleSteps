@@ -94,10 +94,29 @@ const PHONETIC_SOUND_MAP: Record<string, string> = {
   z: "zzz",
 };
 
+const FILIPINO_VOICE_PATTERNS = [
+  "blessica",
+  "angelo",
+  "fil-ph",
+  "tl-ph",
+  "filipino",
+  "tagalog",
+];
+
 let cachedFemaleVoice: SpeechSynthesisVoice | null = null;
+let cachedFilipinoVoice: SpeechSynthesisVoice | null = null;
+let activeSpeechLang: "en" | "fil" | "bilingual" = "en";
 let voicesListenerRegistered = false;
 let pendingSpeechTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingEndTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function setActiveSpeechLanguage(lang: "en" | "fil" | "bilingual"): void {
+  activeSpeechLang = lang;
+}
+
+export function getActiveSpeechLanguage(): "en" | "fil" | "bilingual" {
+  return activeSpeechLang;
+}
 let beforeSpeakHook: (() => void) | null = null;
 
 export function setBeforeSpeakHook(hook: (() => void) | null): void {
@@ -118,10 +137,31 @@ function voiceNaturalnessBonus(lowerName: string): number {
   return score;
 }
 
-export function selectPreferredFemaleVoice(
+export function selectPreferredFilipinoVoice(
   voices: SpeechSynthesisVoice[]
 ): SpeechSynthesisVoice | null {
   if (!voices || voices.length === 0) return null;
+  const filVoices = voices.filter((v) => /^(fil|tl)\b/i.test(v.lang || ""));
+  if (filVoices.length > 0) {
+    const femaleFil = filVoices.find((v) => !isMaleVoiceName((v.name || "").toLowerCase()));
+    return femaleFil || filVoices[0];
+  }
+  const byName = voices.find((v) =>
+    FILIPINO_VOICE_PATTERNS.some((pat) => (v.name || "").toLowerCase().includes(pat))
+  );
+  return byName || null;
+}
+
+export function selectPreferredFemaleVoice(
+  voices: SpeechSynthesisVoice[],
+  lang: "en" | "fil" | "bilingual" = "en"
+): SpeechSynthesisVoice | null {
+  if (!voices || voices.length === 0) return null;
+
+  if (lang === "fil") {
+    const fil = selectPreferredFilipinoVoice(voices);
+    if (fil) return fil;
+  }
 
   const englishVoices = voices.filter((v) => /^en\b/i.test(v.lang || ""));
   const pool = englishVoices.length > 0 ? englishVoices : voices;
@@ -187,14 +227,17 @@ export function isSpeechSupported(): boolean {
   );
 }
 
-function ensureVoiceCache(): SpeechSynthesisVoice | null {
+function ensureVoiceCache(
+  lang: "en" | "fil" | "bilingual" = activeSpeechLang
+): SpeechSynthesisVoice | null {
   if (!isSpeechSupported()) return null;
 
   const synth = window.speechSynthesis;
   const refresh = () => {
     const voices = synth.getVoices();
     if (voices.length > 0) {
-      cachedFemaleVoice = selectPreferredFemaleVoice(voices);
+      cachedFemaleVoice = selectPreferredFemaleVoice(voices, "en");
+      cachedFilipinoVoice = selectPreferredFemaleVoice(voices, "fil");
     }
   };
 
@@ -212,6 +255,7 @@ function ensureVoiceCache(): SpeechSynthesisVoice | null {
   }
 
   refresh();
+  if (lang === "fil" && cachedFilipinoVoice) return cachedFilipinoVoice;
   return cachedFemaleVoice;
 }
 
@@ -240,10 +284,12 @@ export function speak(
     rate?: number;
     pitch?: number;
     volume?: number;
+    lang?: "en" | "fil" | "bilingual";
     onEnd?: () => void;
     keepAnimalSound?: boolean;
   }
 ): void {
+  const effectiveLang = opts?.lang ?? activeSpeechLang;
   const cleanedText = formatKindergartenSpeech(text);
   if (!getSoundEnabled() || !isSpeechSupported() || !cleanedText) {
     opts?.onEnd?.();
@@ -264,13 +310,13 @@ export function speak(
     const synth = window.speechSynthesis;
 
     const dispatchUtterance = () => {
-      const preferredVoice = ensureVoiceCache();
+      const preferredVoice = ensureVoiceCache(effectiveLang);
       const utterance = new SpeechSynthesisUtterance(cleanedText);
       if (preferredVoice) {
         utterance.voice = preferredVoice;
-        utterance.lang = preferredVoice.lang || "en-US";
+        utterance.lang = preferredVoice.lang || (effectiveLang === "fil" ? "fil-PH" : "en-US");
       } else {
-        utterance.lang = "en-US";
+        utterance.lang = effectiveLang === "fil" ? "fil-PH" : "en-US";
       }
       // Warm, gentle, nurturing kindergarten teacher cadence
       utterance.rate = opts?.rate ?? 0.89;

@@ -1,7 +1,9 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.services.garden_service import normalize_garden_state
 
 AGE_GROUP_PATTERN = r"^(Pre-School|3-4|4-5|5-6|4-6|[3-6])$"
 
@@ -74,8 +76,26 @@ class ChildOut(BaseModel):
     streak_days: int
     total_stars: int
     is_active: bool
+    garden_state_json: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("garden_state_json", mode="before")
+    @classmethod
+    def ensure_garden_state(cls, v: Any) -> dict[str, Any]:
+        return normalize_garden_state(v if isinstance(v, dict) else None)
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class GardenActionIn(BaseModel):
+    crop_key: Literal[
+        "kalabasa",
+        "kamatis",
+        "sitaw",
+        "talong",
+        "saging",
+        "sampaguita",
+    ]
+    use_resource: Literal["sunbeam", "raindrop"] = "sunbeam"
 
 
 class SkillProgressOut(BaseModel):

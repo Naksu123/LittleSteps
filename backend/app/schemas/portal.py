@@ -123,14 +123,37 @@ class ParentSettingsOut(BaseModel):
     preferred_language: str
     daily_screen_limit_mins: int
     notifications_enabled: bool
+    has_parent_pin: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class ParentSettingsUpdate(BaseModel):
-    preferred_language: Optional[Literal["en", "fil"]] = None
+    preferred_language: Optional[Literal["en", "fil", "bilingual"]] = None
     daily_screen_limit_mins: Optional[int] = Field(default=None, ge=10, le=120)
     notifications_enabled: Optional[bool] = None
+    parent_pin: Optional[str] = Field(default=None, pattern=r"^\d{4}$")
+    clear_parent_pin: Optional[bool] = None
+
+
+class ParentPinVerifyIn(BaseModel):
+    pin: str = Field(pattern=r"^\d{4}$")
+
+
+class ParentPinVerifyOut(BaseModel):
+    valid: bool
+
+
+class ParentChildDigestOut(BaseModel):
+    strength_en: str
+    strength_fil: str
+    next_step_en: str
+    next_step_fil: str
+    days_active_this_week: int = 0
+
+
+class ArtworkApprovalUpdate(BaseModel):
+    approved_by_parent: bool
 
 
 class AssignedActivityOut(BaseModel):
@@ -147,6 +170,8 @@ class ParentChildDashboardItem(BaseModel):
     lessons_completed: int
     total_lessons: int
     total_time_minutes: int
+    days_active_this_week: int = 0
+    digest: Optional[ParentChildDigestOut] = None
     recent_rewards: list[RewardOut]
     skills: list[SkillProgressOut]
     weekly_activity: list[WeeklyActivityPoint]
@@ -215,7 +240,9 @@ class WeeklyReportOut(BaseModel):
     previous_week_lessons: int
     games_played_this_week: int
     home_activities_completed_this_week: int
+    days_active_this_week: int = 0
     encouraging_summary: str
+    encouraging_summary_fil: Optional[str] = None
     strengths: list[SkillProgressOut]
     areas_to_practice: list[SkillProgressOut]
     activity_history: list[ActivityHistoryItem]

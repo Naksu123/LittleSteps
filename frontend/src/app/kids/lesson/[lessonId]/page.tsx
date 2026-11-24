@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Volume2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ENCOURAGE_TRY, pick } from "@/lib/gameScoring";
+import { normalizeLanguage, tLines, tText } from "@/lib/i18n";
 import { getSoundEnabled, playChime } from "@/lib/sound";
 import { speak, stopSpeaking } from "@/lib/speech";
 import { cn, getDefaultPortalPath } from "@/lib/utils";
@@ -32,7 +33,9 @@ type LessonStage = "slides" | "activity" | "quiz" | "done";
 function LessonViewerContent() {
   const params = useParams<{ lessonId: string }>();
   const router = useRouter();
-  const { user, childrenList, activeChildId, refreshUser } = useAuth();
+  const { user, childrenList, activeChildId, parentPreferences, refreshUser } =
+    useAuth();
+  const lang = normalizeLanguage(parentPreferences?.preferred_language);
 
   const lessonId = params?.lessonId;
   const activeChild =
@@ -46,6 +49,11 @@ function LessonViewerContent() {
 
   const [stage, setStage] = useState<LessonStage>("slides");
   const [slideIdx, setSlideIdx] = useState(0);
+  const [storyChoiceFeedback, setStoryChoiceFeedback] = useState<{
+    message: string;
+    correct: boolean;
+    key: string;
+  } | null>(null);
 
   // Quiz state
   const [quizIdx, setQuizIdx] = useState(0);
@@ -129,10 +137,18 @@ function LessonViewerContent() {
   const currentSlide = slides[slideIdx];
 
   useEffect(() => {
+    setStoryChoiceFeedback(null);
     if (stage === "slides" && currentSlide && getSoundEnabled()) {
-      speak(currentSlide.narration || currentSlide.text);
+      const narrationText =
+        lang === "fil"
+          ? currentSlide.narration_fil ||
+            currentSlide.text_fil ||
+            currentSlide.narration ||
+            currentSlide.text
+          : currentSlide.narration || currentSlide.text;
+      speak(narrationText, { lang });
     }
-  }, [stage, slideIdx, currentSlide]);
+  }, [stage, slideIdx, currentSlide, lang]);
 
   useEffect(() => {
     return () => {
@@ -366,12 +382,105 @@ function LessonViewerContent() {
                         <div className="text-5xl sm:text-7xl select-none">
                           {currentSlide?.emoji}
                         </div>
-                        <h2 className="font-display text-xl sm:text-3xl font-bold text-[#24334D]">
-                          {currentSlide?.title}
-                        </h2>
-                        <p className="text-sm sm:text-lg font-semibold text-[#24334D]/80 max-w-xl mx-auto">
-                          {currentSlide?.text}
-                        </p>
+                        {(() => {
+                          const titleInfo = tLines(
+                            lang,
+                            currentSlide?.title || "",
+                            currentSlide?.title_fil
+                          );
+                          const bodyInfo = tLines(
+                            lang,
+                            currentSlide?.text || "",
+                            currentSlide?.text_fil
+                          );
+                          return (
+                            <>
+                              <h2 className="font-display text-xl sm:text-3xl font-bold text-[#24334D]">
+                                {titleInfo.primary}
+                              </h2>
+                              {titleInfo.secondary && (
+                                <p className="text-sm font-bold text-[#175B82]">
+                                  {titleInfo.secondary}
+                                </p>
+                              )}
+                              <p className="text-sm sm:text-lg font-semibold text-[#24334D]/80 max-w-xl mx-auto">
+                                {bodyInfo.primary}
+                              </p>
+                              {bodyInfo.secondary && (
+                                <p className="text-xs sm:text-base font-semibold text-[#24334D]/65 max-w-xl mx-auto">
+                                  {bodyInfo.secondary}
+                                </p>
+                              )}
+                            </>
+                          );
+                        })()}
+
+                        {currentSlide?.story_choice && (
+                          <div className="mt-4 rounded-2xl bg-white border-2 border-[#B8A5F5]/60 p-4 space-y-3 text-left">
+                            <p className="font-display text-base sm:text-lg font-bold text-[#24334D] text-center">
+                              ✨{" "}
+                              {tText(
+                                lang,
+                                currentSlide.story_choice.prompt,
+                                currentSlide.story_choice.prompt_fil
+                              )}
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              {currentSlide.story_choice.options.map((opt) => {
+                                const selected =
+                                  storyChoiceFeedback?.key === opt.key;
+                                return (
+                                  <button
+                                    key={opt.key}
+                                    type="button"
+                                    onClick={() => {
+                                      playChime(opt.correct ? "success" : "try");
+                                      const fbMsg = tText(
+                                        lang,
+                                        opt.feedback,
+                                        opt.feedback_fil
+                                      );
+                                      setStoryChoiceFeedback({
+                                        message: fbMsg,
+                                        correct: opt.correct,
+                                        key: opt.key,
+                                      });
+                                      speak(fbMsg, { lang });
+                                    }}
+                                    className={cn(
+                                      "rounded-2xl border-2 px-4 py-3 flex items-center gap-3 text-left font-bold text-sm transition-all cursor-pointer",
+                                      selected && opt.correct
+                                        ? "bg-[#DDF8EC] border-[#9BE7C4] text-[#166041]"
+                                        : selected
+                                          ? "bg-[#FFF5CF] border-[#FFE58A] text-[#785700]"
+                                          : "bg-[#FFF9F0] border-[#24334D]/12 hover:bg-[#DCF2FD]/50"
+                                    )}
+                                  >
+                                    <span className="text-2xl shrink-0">
+                                      {opt.emoji}
+                                    </span>
+                                    <span>
+                                      {tText(lang, opt.label, opt.label_fil)}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {storyChoiceFeedback && (
+                              <div
+                                role="status"
+                                className={cn(
+                                  "rounded-xl px-3.5 py-2 text-center text-sm font-bold",
+                                  storyChoiceFeedback.correct
+                                    ? "bg-[#DDF8EC] text-[#166041]"
+                                    : "bg-[#FFF5CF] text-[#785700]"
+                                )}
+                              >
+                                {storyChoiceFeedback.message}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">

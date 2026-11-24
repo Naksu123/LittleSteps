@@ -13,8 +13,8 @@ def test_seed_is_idempotent(db_session: Session) -> None:
     assert first == second
     assert first["subjects"] == 6
     assert first["themes"] == 12
-    assert first["games"] == 16
-    assert first["lessons"] == 6
+    assert first["games"] == 18
+    assert first["lessons"] == 12
 
     admin = db_session.scalar(select(User).where(User.email == "admin@littlesteps.edu"))
     assert admin is not None
@@ -40,7 +40,7 @@ def test_learning_content_and_parent_dashboard(client: TestClient) -> None:
 
     games = client.get("/api/games", headers=headers)
     assert games.status_code == 200
-    assert len(games.json()) == 16
+    assert len(games.json()) == 18
 
     dashboard = client.get("/api/parent/dashboard", headers=headers)
     assert dashboard.status_code == 200

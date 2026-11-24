@@ -118,7 +118,7 @@ export const learningGoalSchema = z.object({
 export type LearningGoalFormValues = z.infer<typeof learningGoalSchema>;
 
 export const parentSettingsSchema = z.object({
-  preferred_language: z.enum(["en", "fil"]),
+  preferred_language: z.enum(["en", "fil", "bilingual"]),
   daily_screen_limit_mins: z.coerce
     .number()
     .int()
